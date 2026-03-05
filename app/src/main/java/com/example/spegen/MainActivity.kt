@@ -371,47 +371,41 @@ fun InputBox_Symbol(index: Int) {
 
     var name by remember {mutableStateOf("")}
     var url by remember {mutableStateOf("")}
-    var isLoading by remember { mutableStateOf(true) }
-
     LaunchedEffect(selected_symbols) {
         println(selected_symbols[index])
         val res = useApiWithToken(accesstoken, selected_symbols[index])
         println(res)
         name = res?.name ?: ""
         url = res?.image_url ?: ""
-        isLoading = false
     }
 
-    if (!isLoading) {
-        name = name.replaceFirstChar {
-            if (it.isLowerCase())
-                it.titlecase()
-            else it.toString()
-        }
-        var height_dp = 16
-        var width_dp = height_dp * 3.0625
-        println(name)
-        println(url)
-        Box {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(url)
-                    .build(),
-                "Picture of $name",
-                modifier = Modifier
-                    .background(Color.White)
-                    .padding(box_padding)
-                    .scale(1f)
-                    .size(box_size)
-            )
-            Text(
-                text = name,
-                color = Color.Black,
-                modifier = Modifier.padding(1.dp).height(height_dp.dp).width(width_dp.dp)
-                    .align(Alignment.BottomCenter),
-                textAlign = TextAlign.Center
-            )
-        }
+    name = name.replaceFirstChar {
+        if (it.isLowerCase())
+            it.titlecase()
+        else it.toString()
+    }
+    var height_dp = 16
+    var width_dp = height_dp * 3.0625
+    println(name)
+    println(url)
+    Box {
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(url)
+                .build(),
+            "Picture of $name",
+            modifier = Modifier
+                .background(Color.White)
+                .padding(box_padding)
+                .scale(1f)
+                .size(box_size)
+        )
+        Text(
+            text = name,
+            color = Color.Black,
+            modifier = Modifier.padding(1.dp).height(height_dp.dp).width(width_dp.dp)
+                .align(Alignment.BottomCenter),
+            textAlign = TextAlign.Center)
     }
 }
 
