@@ -69,7 +69,15 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.fromColorLong
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.compose.rememberLifecycleOwner
+import kotlinx.coroutines.launch
+import kotlin.collections.find
 import kotlin.math.absoluteValue
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
+import java.security.KeyStore
 
 
 // Text box text variable
@@ -251,10 +259,8 @@ suspend fun getAccessToken(): AccessTokenResponse? {
 }
 
 
-suspend fun useApiWithToken(token: String?, search: String) {
-    // Uses access token to get image data
-
-    withContext(Dispatchers.IO) {
+suspend fun useApiWithToken(token: String?, search: String): ApiSymbolResponse? {
+    return withContext(Dispatchers.IO) {
         val params = listOf(
             "q" to search,
             "locale" to "en",
@@ -267,63 +273,30 @@ suspend fun useApiWithToken(token: String?, search: String) {
 
         when (result) {
             is Result.Failure -> {
-                val ex = result.getException()
-                println("API call failed: ${ex.message}")
+                println("API call failed: ${result.getException().message}")
+                null
             }
             is Result.Success -> {
                 var symbolstring = (result.get()).replace("[", "").replace("]", "").split("},")[0]
+
                 if (symbolstring.length > 1) {
                     symbolstring += "}"
                 }
-                if (symbolstring.count{ char -> char in "}" } > 0) {
-                    symbolstring = symbolstring.dropLast((symbolstring.count { char -> char in "}" })-1)
-                    val symbol = Json.decodeFromString<ApiSymbolResponse>(symbolstring)
-                    id = symbol.id
-                    symbol_key = symbol.symbol_key
-                    name = symbol.name
-                    locale = symbol.locale
-                    license = symbol.license
-                    license_url = symbol.license_url
-                    author = symbol.author
-                    author_url = symbol.author_url
-                    source_url = symbol.source_url
-                    skins = symbol.skins == false
-                    repo_key = symbol.repo_key
-                    hc = symbol.hc == false
-                    extension = symbol.extension
-                    image_url = symbol.image_url
-                    search_string = symbol.search_string
-                    unsafe_result = symbol.unsafe_result
-                    _href = symbol._href
-                    details_url = symbol.details_url
-                    empty = false
-                }
 
-                else {
-                    id = 0
-                    symbol_key = ""
-                    name = ""
-                    locale = ""
-                    license = ""
-                    license_url = ""
-                    author = ""
-                    author_url = ""
-                    source_url = ""
-                    skins = false
-                    repo_key = ""
-                    hc = false
-                    extension = ""
-                    image_url = ""
-                    search_string = ""
-                    unsafe_result = false
-                    _href = ""
-                    details_url = ""
-                    empty = true
+                if (symbolstring.contains("}")) {
+                    // Clean up the string to ensure valid JSON for a single object
+                    symbolstring = symbolstring.dropLast(symbolstring.count { it == '}' } - 1)
+
+                    // 3. Return the decoded object
+                    Json.decodeFromString<ApiSymbolResponse>(symbolstring)
+                } else {
+                    null // Return null if no valid symbol found
                 }
             }
         }
     }
 }
+
 
 
 // Function that creates the static row of always accessible words at the bottom of the screen for easy access with for loop that allows for customization through variables
@@ -366,69 +339,91 @@ fun Static_Row_Needs() {
 
 @Composable
 fun InputBox(modifier: Modifier) {
-    tts = rememberTextToSpeech()
+    val tts = rememberTextToSpeech()
+
+    LaunchedEffect(Unit) {
+        getAccessToken()
+    }
+
     Row {
         LazyRow(
-            modifier = modifier.width(screenWidth - (button_boxes_width * 2))
+            modifier = modifier
+                .width(screenWidth - (button_boxes_width * 2))
                 .height(button_boxes_width * 2)
                 .background(Color.White)
-                .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(0.dp))
-                .clickable(onClick = {
-                    var speech = selected_symbols.joinToString(separator = " ")
-                    if (tts.value?.isSpeaking == true) {
-                        tts.value?.stop()
-                    } else tts.value?.speak(
-                        speech, TextToSpeech.QUEUE_FLUSH, null, ""
-                    )
+                .border(4.dp, Color.Black)
+                .clickable {
+                    val speech = selected_symbols.joinToString(" ")
+                    tts.value?.speak(speech, TextToSpeech.QUEUE_FLUSH, null, "")
                 }
-                )
         ) {
-            items(selected_symbols.size) { item ->
-                runBlocking {
-                    useApiWithToken(accesstoken, selected_symbols[item])
-                }
-                InputBox_Symbol(name)
+            // This condition ensures nothing is shown until the loop finishes
+            items(selected_symbols.size) { index ->
+                InputBox_Symbol(index)
             }
+
         }
     }
 }
 
-
 @Composable
-fun InputBox_Symbol(Name: String) {
-    val name = Name.replaceFirstChar {
-        if (it.isLowerCase())
-            it.titlecase()
-        else it.toString() }
-    var height_dp = 16
-    var width_dp = height_dp*3.0625
-    Box {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(image_url)
-                .build(),
-            "Picture of $Name",
-            modifier = Modifier
-                .background(Color.White)
-                .padding(box_padding)
-                .scale(1f)
-                .size(box_size)
-        )
-        Text(text = name, color = Color.Black, modifier = Modifier.padding(1.dp).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
+fun InputBox_Symbol(index: Int) {
+
+    var name by remember {mutableStateOf("")}
+    var url by remember {mutableStateOf("")}
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(selected_symbols) {
+        println(selected_symbols[index])
+        val res = useApiWithToken(accesstoken, selected_symbols[index])
+        println(res)
+        name = res?.name ?: ""
+        url = res?.image_url ?: ""
+        isLoading = false
+    }
+
+    if (!isLoading) {
+        name = name.replaceFirstChar {
+            if (it.isLowerCase())
+                it.titlecase()
+            else it.toString()
+        }
+        var height_dp = 16
+        var width_dp = height_dp * 3.0625
+        println(name)
+        println(url)
+        Box {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(url)
+                    .build(),
+                "Picture of $name",
+                modifier = Modifier
+                    .background(Color.White)
+                    .padding(box_padding)
+                    .scale(1f)
+                    .size(box_size)
+            )
+            Text(
+                text = name,
+                color = Color.Black,
+                modifier = Modifier.padding(1.dp).height(height_dp.dp).width(width_dp.dp)
+                    .align(Alignment.BottomCenter),
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
 @Composable
-fun Symbol(Name: String, Vertical_Stretch: Dp, tts_type: Int) {
-    tts = rememberTextToSpeech()
+fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int) {
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
             it.titlecase()
         else it.toString() }
     var height_dp = 16
     var width_dp = height_dp*3.0625
-    var switchmenu by remember { mutableStateOf(false) }
-    var switchmenu1 by remember { mutableStateOf(false) }
+    tts = rememberTextToSpeech()
     Box {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -461,12 +456,6 @@ fun Symbol(Name: String, Vertical_Stretch: Dp, tts_type: Int) {
                         )
                         selected_symbols += name
                     }
-                    if (switchmenu == false) {
-                        switchmenu = !switchmenu
-                    } else {
-                        switchmenu = !switchmenu
-                        switchmenu1 = !switchmenu1
-                    }
                 })
         )
         Text(text = name, color = Color.Black, modifier = Modifier.padding(1.dp).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
@@ -474,7 +463,7 @@ fun Symbol(Name: String, Vertical_Stretch: Dp, tts_type: Int) {
 }
 
 @Composable
-fun Folder(Name: String, LinkedMenu: Int, Vertical_Stretch: Dp) {
+fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp) {
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
             it.titlecase()
@@ -545,28 +534,43 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
     var totalitems = ((screenWidth - (button_boxes_width * 2))/(box_size + (box_padding*2)))*((screenHeight-(static_row_height*2))/box_size)
     var total_box_size = box_size+(box_padding*2)
     val vertical_stretch = ((menu_height)-((((menu_height)/(total_box_size)).toInt())*total_box_size))
-    runBlocking {
+    var folder_names = remember { mutableStateListOf<String>() }
+    var folder_urls = remember { mutableStateListOf<String>() }
+    var symbol_names = remember { mutableStateListOf<String>() }
+    var symbol_urls = remember { mutableStateListOf<String>() }
+    LaunchedEffect(Unit) {
         getAccessToken()
+    }
+    LaunchedEffect(menutemplate) {
+        getAccessToken()
+
+        folder_names.clear()
+        folder_urls.clear()
+
+        menutemplate.folders.forEach { query ->
+            val res = useApiWithToken(accesstoken, query)
+            folder_names.add(res?.name ?: "")
+            folder_urls.add(res?.image_url ?: "")
+        }
+
+        symbol_names.clear()
+        symbol_urls.clear()
+
+        menutemplate.symbols.forEach { query ->
+            val res = useApiWithToken(accesstoken, query)
+            symbol_names.add(res?.name ?: "")
+            symbol_urls.add(res?.image_url ?: "")
+        }
     }
     FlowRow(modifier = modifier.fillMaxWidth().fillMaxHeight(), horizontalArrangement = Arrangement.SpaceBetween) {
         var itemsdisplayed = 0
-        for (i in 0 until menutemplate.folders.size) {
-            runBlocking {
-                useApiWithToken(accesstoken, menutemplate.folders[i])
-            }
-            if (id != 0) {
-                Folder(name, menutemplate.pointers[i], vertical_stretch)
-                itemsdisplayed += 1
-            }
+        for (i in 0 until folder_names.size) {
+            Folder(folder_names[i], folder_urls[i], menutemplate.pointers[i], vertical_stretch)
+            itemsdisplayed += 1
         }
-        for (i in 0 until menutemplate.symbols.size) {
-            runBlocking {
-                useApiWithToken(accesstoken, menutemplate.symbols[i])
-            }
-            if (id != 0) {
-                Symbol(name, vertical_stretch, menutemplate.tts[i])
-                itemsdisplayed += 1
-            }
+        for (i in 0 until symbol_names.size) {
+            Symbol(symbol_names[i], symbol_urls[i], vertical_stretch, menutemplate.tts[i])
+            itemsdisplayed += 1
         }
         for (i in 0 until totalitems.toInt()-(itemsdisplayed)) {
             Box(modifier = Modifier
@@ -639,7 +643,7 @@ fun MenuRow(modifier: Modifier) {
                 )
             }
             if (switchmenu or switchmenu1) {
-                MenuParser(MenuFinder(linked_menus[i]), Modifier.offset(0.dp,-150.dp))
+                MenuParser(MenuFinder(linked_menus[i]), Modifier.offset((-1*(x_offset+(width*i))).value.dp,(-1*(y_offset)).value.dp))
             }
         }
 }
@@ -683,7 +687,20 @@ fun WordFinder() {
             Button(
                 modifier = Modifier.offset(x = ((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp),
                 onClick = {
+                    var found = false
                     // Calculate where item is in menus and how to navigate to it. Could use something like bubble sort.
+                    for (i in 0 until MenuList.size) {
+                        if (text in MenuList[i].folders) {
+                            found = true
+                        }
+                        if (text in MenuList[i].symbols) {
+                            found = true
+
+                        }
+                    }
+                    if (!found) {
+                        // Display not found
+                    }
                 }
             ) {
                 Text(text = "Search", textAlign = TextAlign.Center)
@@ -695,10 +712,9 @@ fun WordFinder() {
 @Composable
 fun Buttonboxes() {
     val a = remember {mutableIntStateOf(0)}
-    println(button_boxes_width)
-    val x_offset = ((screenWidth - button_boxes_width - 70.dp).value).dp
-    val y_offset = 0.dp
     button_boxes_width = 70.dp
+    val x_offset = ((screenWidth - button_boxes_width).value).dp
+    val y_offset = 0.dp
     var switchmenu by remember { mutableStateOf(false) }
     var switchmenu1 by remember { mutableStateOf(false) }
     if (wordfinder_display.value == a.value) {
