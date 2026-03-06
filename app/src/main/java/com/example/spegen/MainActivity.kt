@@ -55,6 +55,7 @@ import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -68,6 +69,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.fromColorLong
+import androidx.compose.ui.unit.times
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.compose.rememberLifecycleOwner
 import kotlinx.coroutines.launch
@@ -162,12 +164,24 @@ var tts: MutableState<TextToSpeech?> = mutableStateOf(null)
 
 var wordfinder_display = mutableIntStateOf(0)
 
+var switchmenuparser = mutableStateOf(false)
+
+var linked_menu = mutableStateOf(0)
+
+var modifier_picker: Modifier = Modifier
+
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             Screen()
+            if (switchmenuparser.value) {
+                Column(modifier = modifier_picker) {
+                    MenuParser(MenuFinder(linked_menu.value))
+                }
+            }
         }
     }
 }
@@ -598,49 +612,53 @@ fun Menu(modifier: Modifier) {
 
 @Composable
 fun MenuRow(modifier: Modifier) {
-    val menu_terms: MutableList<String> = mutableListOf("Home", "Temp", "Temp2", "Temp3", "Temp4", "Temp5")
-    val linked_menus: MutableList<Int?> = mutableListOf(0,null,null,null,null,null)
+    val menu_terms: MutableList<String> =
+        mutableListOf("Home", "Temp", "Temp2", "Temp3", "Temp4", "Temp5")
+    for (i in 0 until menu_terms.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
+    {
+        Menurowbox(modifier, i, menu_terms)
+    }
+}
+
+@Composable
+fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
+    val linked_menus: MutableList<Int?> = mutableListOf(0, null, null, null, null, null)
     var text_color = Color.Black // Set as var to be able to be customized by user later
     var box_color = Color.White // Set as var to be able to be customized by user later
     var border_size = 2.dp // Set as var to be able to be customized by user later
     var border_color = Color.Black // Set as var to be able to be customized by user later
-    var width = (screenWidth/menu_terms.size.dp).dp // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
-    static_row_height = (screenHeight.value*((70.dp/screenHeight).dp).value).dp // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
-    var y_offset = (screenHeight-static_row_height-static_row_height) // Determines Y offset by subtracting height from the total screen width
-    var x_offset = (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
-    var switchmenu by remember { mutableStateOf(false) }
-    var switchmenu1 by remember { mutableStateOf(false) }
-    for (i in 0 until menu_terms.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
-        Column() {
-            Box(
-                // FIX Y OFFSET
-                modifier = modifier
-                    .offset((x_offset+(width*i)), y_offset)
-                    .width(width)
-                    .height(static_row_height)
-                    .background(color = box_color)
-                    .border(border = BorderStroke(border_size, border_color))
-                    .clickable(onClick = {
-                        if (switchmenu == false) {
-                            switchmenu = !switchmenu
-                        }
-                        else {
-                            switchmenu = !switchmenu
-                            switchmenu1 = !switchmenu1
-                        }
-                    })
-            ) {
-                Text(
-                    text = menu_terms[i],
-                    color = text_color,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            }
-            if (switchmenu or switchmenu1) {
-                MenuParser(MenuFinder(linked_menus[i]), Modifier.offset((-1*(x_offset+(width*i))).value.dp,(-1*(y_offset)).value.dp))
-            }
+    var width =
+        (screenWidth / menu_terms.size) // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
+    static_row_height =
+        (screenHeight.value * ((70.dp / screenHeight).dp).value).dp // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
+    var y_offset =
+        (screenHeight - static_row_height - static_row_height) // Determines Y offset by subtracting height from the total screen width
+    var x_offset =
+        (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
+    Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+        Box(
+            // FIX Y OFFSET
+            modifier = modifier
+                .offset((x_offset+(width*i)), y_offset)
+                .width(width)
+                .height(static_row_height)
+                .background(color = box_color)
+                .border(border = BorderStroke(border_size, border_color))
+                .clickable(onClick = {
+                    switchmenuparser.value = true
+                })
+        ) {
+            Text(
+                text = menu_terms[i],
+                color = text_color,
+                modifier = Modifier.align(Alignment.Center)
+            )
         }
+    }
+    linked_menu.value = linked_menus[i]?: 0
+    modifier_picker = Modifier.width(screenWidth-(button_boxes_width*2)).height(screenHeight-(static_row_height*4)).offset(0.dp, button_boxes_width*2)
 }
+
 
 // Could make an image override function that lets the user use their own images in place of the default ones
 fun ImageOverride() {
@@ -661,17 +679,8 @@ fun WordFinder() {
                 .padding(vertical = 20.dp)
         ) {
             var text by remember { mutableStateOf("") }
-            TextField(
-                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
-                value = text,
-                onValueChange = { newText ->
-                    text = newText
-                },
-                label = { Text("Image Search") },
-                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.1).dp))
-            )
             Button(
-                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/4)-(screenWidth.value*0.1).dp)),
+                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/4)-(screenWidth.value*0.1).dp)).padding(horizontal = 5.dp), // Could add padding variable to the 5.dp
                 onClick = {
                     wordfinder_display.intValue = 0
                 }
@@ -679,7 +688,7 @@ fun WordFinder() {
                 Text(text = "Close", textAlign = TextAlign.Center)
             }
             Button(
-                modifier = Modifier.offset(x = ((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp),
+                modifier = Modifier.offset(x = ((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp).padding(horizontal = 5.dp), // Could add padding variable to the 5.dp
                 onClick = {
                     var found = false
                     // Calculate where item is in menus and how to navigate to it. Could use something like bubble sort.
@@ -699,6 +708,15 @@ fun WordFinder() {
             ) {
                 Text(text = "Search", textAlign = TextAlign.Center)
             }
+            TextField(
+                textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center),
+                value = text,
+                onValueChange = { newText ->
+                    text = newText
+                },
+                label = { Text("Image Search") },
+                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.2).dp)).width(((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp-(((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.1).dp)) // Could add padding variable to the 5.dp
+            )
         }
     }
 }
