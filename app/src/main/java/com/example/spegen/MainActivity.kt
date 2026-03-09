@@ -164,7 +164,7 @@ var tts: MutableState<TextToSpeech?> = mutableStateOf(null)
 
 var wordfinder_display = mutableIntStateOf(0)
 
-var switchmenuparser = mutableStateOf(false)
+var switchmenuparser = mutableStateOf(0)
 
 var linked_menu = mutableStateOf(0)
 
@@ -177,7 +177,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             Screen()
-            if (switchmenuparser.value) {
+            if (switchmenuparser.value > 0) {
                 Column(modifier = modifier_picker) {
                     MenuParser(MenuFinder(linked_menu.value))
                 }
@@ -424,6 +424,7 @@ fun InputBox_Symbol(index: Int) {
 }
 
 @Composable
+@NonSkippableComposable
 fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int) {
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
@@ -471,6 +472,7 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int)
 }
 
 @Composable
+@NonSkippableComposable
 fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp) {
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
@@ -538,6 +540,7 @@ fun MenuFinder(menu_id: Int?): menutemplate {
 }
 
 @Composable
+@NonSkippableComposable
 fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
     var totalitems = ((screenWidth - (button_boxes_width * 2))/(box_size + (box_padding*2)))*((screenHeight-(static_row_height*2))/box_size)
     var total_box_size = box_size+(box_padding*2)
@@ -570,24 +573,35 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
             symbol_urls.add(res?.image_url ?: "")
         }
     }
-    FlowRow(modifier = modifier.fillMaxWidth().fillMaxHeight(), horizontalArrangement = Arrangement.SpaceBetween) {
-        var itemsdisplayed = 0
-        for (i in 0 until folder_names.size) {
-            Folder(folder_names[i], folder_urls[i], menutemplate.pointers[i], vertical_stretch)
-            itemsdisplayed += 1
-        }
-        for (i in 0 until symbol_names.size) {
-            Symbol(symbol_names[i], symbol_urls[i], vertical_stretch, menutemplate.tts[i])
-            itemsdisplayed += 1
-        }
-        for (i in 0 until totalitems.toInt()-(itemsdisplayed)) {
-            Box(modifier = Modifier
-                .background(Color.White)
-                .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
-                .padding(box_padding)
-                .scale(1f)
-                .height(box_size+vertical_stretch+box_padding)
-                .width(box_size))
+    key(switchmenuparser.value) {
+        FlowRow(
+            modifier = modifier.fillMaxWidth().fillMaxHeight(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            var itemsdisplayed = 0
+            for (i in 0 until folder_names.size) {
+                Folder(folder_names[i], folder_urls[i], menutemplate.pointers[i], vertical_stretch)
+                itemsdisplayed += 1
+            }
+            for (i in 0 until symbol_names.size) {
+                Symbol(symbol_names[i], symbol_urls[i], vertical_stretch, menutemplate.tts[i])
+                itemsdisplayed += 1
+            }
+            for (i in 0 until totalitems.toInt() - (itemsdisplayed)) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.White)
+                        .border(
+                            width = 4.dp,
+                            color = Color.Black,
+                            shape = RoundedCornerShape(40.dp)
+                        )
+                        .padding(box_padding)
+                        .scale(1f)
+                        .height(box_size + vertical_stretch + box_padding)
+                        .width(box_size)
+                )
+            }
         }
     }
 }
@@ -645,7 +659,7 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
                 .background(color = box_color)
                 .border(border = BorderStroke(border_size, border_color))
                 .clickable(onClick = {
-                    switchmenuparser.value = true
+                    switchmenuparser.value += 1
                 })
         ) {
             Text(
@@ -666,6 +680,7 @@ fun ImageOverride() {
 
 @Composable
 fun WordFinder() {
+    switchmenuparser.value = 0
     val a = remember {mutableIntStateOf(1)}
     var search_row_display = remember {mutableIntStateOf(0)}
     Box(modifier = Modifier.fillMaxSize().background(Color(red = 230, green = 227, blue = 227, alpha = 100))) {
@@ -715,7 +730,7 @@ fun WordFinder() {
                     text = newText
                 },
                 label = { Text("Image Search") },
-                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.2).dp)).width(((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp-(((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.1).dp)) // Could add padding variable to the 5.dp
+                modifier = Modifier.offset((((screenWidth.value * 0.8).dp/2)-(screenWidth.value*0.2).dp)).width(((((screenWidth.value * 0.8)/4)+((((screenWidth.value * 0.8)/2))))).dp-(((screenWidth.value * 0.8).dp/3))) // Could add padding variable to the 5.dp
             )
         }
     }
