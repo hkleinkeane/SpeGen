@@ -54,6 +54,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -63,6 +64,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.TextField
 import androidx.compose.ui.unit.Dp
@@ -73,6 +75,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.fromColorLong
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.compose.rememberLifecycleOwner
@@ -183,9 +186,10 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            val a = remember { mutableIntStateOf(0) }
             MenuKeyGen()
             Screen()
-            if (switchmenuparser.value > 0) {
+            if (switchmenuparser.value > 0 && (wordfinder_display.intValue == a.intValue)) {
                 Column(modifier = modifier_picker) {
                     MenuParser(MenuFinder(linked_menu.value))
                 }
@@ -739,6 +743,7 @@ fun ImageOverride() {
 fun WordFinder() {
     var showRow by remember { mutableStateOf(false) }
     var text by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf("") }
     val selectedItems = remember { mutableStateListOf<String>() }
     val box_height = ((screenHeight.value - static_row_height.value) * (0.8)).dp
     val box_width = (screenWidth.value * 0.8).dp
@@ -781,6 +786,7 @@ fun WordFinder() {
 
                 Button(
                     onClick = {
+                        searchQuery = text
                         showRow = true
                     }
                 ) {
@@ -794,22 +800,15 @@ fun WordFinder() {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Dropdown Menu for Suggestions
-                        var modified_text = ""
                         for (i in 0 until MenuList.size) {
                             for (a in 0 until MenuList[i].folders.size) {
-                                if (MenuList[i].folders[a] == text) {
-                                    WordFinder_Card(text, i, false, a, flowrow_height_space, box_width)
-                                }
-                                if (modified_text.replace(" ", "") == "") {
-                                    Card(modifier = Modifier.fillMaxWidth()) {
-                                        Text(text, modifier = Modifier)
-                                    }
-                                    modified_text = text
+                                if (MenuList[i].folders[a].lowercase().replace(" ", "") == searchQuery.lowercase().replace(" ", "")) {
+                                    WordFinder_Card(searchQuery, i, false, a, flowrow_height_space, box_width)
                                 }
                             }
                             for (b in 0 until MenuList[i].symbols.size) {
-                                if (MenuList[i].symbols[b] == text) {
-                                    WordFinder_Card(text, i, true, b, flowrow_height_space, box_width)
+                                if (MenuList[i].symbols[b].lowercase().replace(" ", "") == searchQuery.lowercase().replace(" ", "")) {
+                                    WordFinder_Card(searchQuery, i, true, b, flowrow_height_space, box_width)
                                 }
                             }
                         }
@@ -818,6 +817,22 @@ fun WordFinder() {
             }
         }
     }
+}
+
+fun getMenuPath(menuIndex: Int): String {
+    val pathParts = mutableListOf<String>()
+    val visited = mutableSetOf<Int>()
+    var current: menutemplate? = MenuList[menuIndex]
+
+    while (current != null) {
+        if (current.id in visited) break  // stops infinite loop
+        visited.add(current.id)
+        pathParts.add(0, current.title)
+        val parentId = current.parentId
+        current = if (parentId != null) MenuList.find { it.id == parentId } else null
+    }
+
+    return pathParts.joinToString(" > ")
 }
 
 @Composable
@@ -829,7 +844,8 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
     var card_url by remember { mutableStateOf("") }
     var box_size = (total_avaliable_height/cards_per_row)
     var box_padding = 20.dp
-
+    val item_path = getMenuPath(MenuList_element)
+    println(item_path)
     if ((total_avaliable_height.value/cards_per_row).dp > min_height) {
         card_height = (total_avaliable_height.value/cards_per_row).dp
     }
@@ -847,19 +863,42 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
             card_url = res?.image_url.toString()
         }
     }
-    Card(modifier = Modifier.fillMaxWidth().border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
     ) {
-        AsyncImage(
-            model = ImageRequest.Builder(LocalContext.current)
-                .data(card_url)
-                .build(),
-            "Picture of $card_name",
+        Row(
             modifier = Modifier
-                .size(box_size)
+                .fillMaxWidth()
                 .background(Color.White)
-                .padding(box_padding)
-                .scale(1f)
-        )
+                .padding(box_padding),
+            verticalAlignment = Alignment.Top
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(card_url)
+                    .build(),
+                contentDescription = "Picture of $card_name",
+                modifier = Modifier
+                    .size(box_size)
+                    .scale(1f)
+            )
+            val capitalized_name = Name.replaceFirstChar { char ->
+                char.titlecase()
+            }
+            Column()
+            {
+                Text(
+                    text = capitalized_name,
+                    fontSize = (box_size.value / 3).sp
+                )
+                Text(
+                    text = item_path,
+                    fontSize = (box_size.value / 6).sp,
+                )
+            }
+        }
     }
 }
 
