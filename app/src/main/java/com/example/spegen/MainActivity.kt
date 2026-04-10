@@ -58,7 +58,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
@@ -152,9 +154,9 @@ var static_row_height = 0.dp
 
 var button_boxes_width = 0.dp
 
-val home = menutemplate(1, "Menu", 1, listOf("My"), listOf(2), listOf("i", "see", "dog", "moose", "1", "2", "3", "4", "5", "6", "shidfuhosd"), listOf(1,1,1,1,1,1,1,1,1,1,1))
+val home = menutemplate(1, "Menu", 1, listOf("My"), listOf(2), listOf("i", "see", "dog", "moose", "1", "2", "3", "4", "5", "6", "i"), listOf(1,1,1,1,1,1,1,1,1,1,1))
 
-val my = menutemplate(2, "My", 1, listOf("I"), listOf(3), listOf("i", "me", "mine", "eye", "1", "2", "10", "4", "5", "6", "1938"), listOf(1,1,1,1,1,1,1,1,1,1,1))
+val my = menutemplate(2, "My", 1, listOf("I"), listOf(3), listOf("i", "me", "mine", "eye", "1", "2", "10", "4", "5", "6", "1938", "i"), listOf(1,1,1,1,1,1,1,1,1,1,1,1))
 
 var MenuList = listOf<menutemplate>(home, my)
 
@@ -644,7 +646,11 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                     itemsdisplayed += 1
                 }
                 for (i in 0 until symbol_names.size) {
-                    Symbol(symbol_names[i], symbol_urls[i], vertical_stretch, menutemplate.tts[i])
+                    Symbol(
+                        symbol_names[i],
+                        symbol_urls[i],
+                        vertical_stretch,
+                        menutemplate.tts[i])
                     itemsdisplayed += 1
                 }
                 for (i in 0 until totalitems.toInt() - (itemsdisplayed)) {
@@ -750,6 +756,7 @@ fun WordFinder() {
     val row_height = 56.dp
     val flowrow_height_space = box_height-row_height
     val flowrow_width_space = box_width
+    val scrollState = rememberScrollState()
     Box(modifier = Modifier.fillMaxSize().background(Color(red = 230, green = 227, blue = 227, alpha = 100))) {
         Box(
             modifier = Modifier
@@ -796,7 +803,7 @@ fun WordFinder() {
             if (showRow) {
                 Column {
                     FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp).offset(y = row_height),
+                        modifier = Modifier.fillMaxWidth().padding(8.dp).offset(y = row_height).verticalScroll(scrollState),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Dropdown Menu for Suggestions
@@ -889,13 +896,20 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
             Column()
             {
                 Text(
-                    text = capitalized_name,
+                    text = card_name,
                     fontSize = (box_size.value / 3).sp
                 )
                 Text(
                     text = item_path,
                     fontSize = (box_size.value / 6).sp,
                 )
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Button(
+                onClick = {},
+                modifier = Modifier.align(Alignment.CenterVertically)
+            ) {
+                Text(text = "Find", textAlign = TextAlign.Center)
             }
         }
     }

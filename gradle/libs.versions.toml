@@ -16,6 +16,7 @@ foundation = "1.10.1"
 foundationVersion = "1.10.1"
 androidxFoundation = "1.10.2"
 foundationLayout = "1.10.2"
+androidxFoundationVersion = "1.10.6"
 
 
 [libraries]
@@ -42,6 +43,7 @@ androidx-compose-foundation = { group = "androidx.compose.foundation", name = "f
 androidx-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxFoundation" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-compose-foundation-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxFoundationVersion" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
