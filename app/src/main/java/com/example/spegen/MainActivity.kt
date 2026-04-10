@@ -845,7 +845,6 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
     var box_size = (total_avaliable_height/cards_per_row)
     var box_padding = 20.dp
     val item_path = getMenuPath(MenuList_element)
-    println(item_path)
     if ((total_avaliable_height.value/cards_per_row).dp > min_height) {
         card_height = (total_avaliable_height.value/cards_per_row).dp
     }
