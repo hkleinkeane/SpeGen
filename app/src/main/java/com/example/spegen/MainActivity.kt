@@ -37,6 +37,7 @@ import coil3.request.ImageRequest
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -77,6 +78,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.fromColorLong
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.MutableLiveData
@@ -174,6 +176,8 @@ var tts: MutableState<TextToSpeech?> = mutableStateOf(null)
 
 var wordfinder_display = mutableIntStateOf(0)
 
+var wordfinder_display_buttonguide = mutableIntStateOf(0)
+
 var switchmenuparser = mutableStateOf(0)
 
 var linked_menu = mutableStateOf(0)
@@ -195,6 +199,9 @@ class MainActivity : ComponentActivity() {
                 Column(modifier = modifier_picker) {
                     MenuParser(MenuFinder(linked_menu.value))
                 }
+            }
+            if (wordfinder_display_buttonguide.intValue >= 1) {
+                ButtonGuide_Wordfinder()
             }
         }
     }
@@ -905,14 +912,35 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
+            var showButtonGuide by remember { mutableStateOf(false) }
             Button(
-                onClick = {},
+                onClick = {
+                    showButtonGuide = true
+                },
                 modifier = Modifier.align(Alignment.CenterVertically)
             ) {
                 Text(text = "Find", textAlign = TextAlign.Center)
             }
+            if (showButtonGuide) {
+                wordfinder_display.intValue = 0
+                wordfinder_display_buttonguide.intValue += 1
+            }
         }
     }
+}
+
+@Composable
+fun ButtonGuide_Wordfinder() {
+    println("CALLED")
+        Box(
+            modifier = Modifier
+                .zIndex(2f)
+                .fillMaxSize()
+                .background(Color.Gray.copy(alpha = 0.5f))
+                .clickable {
+                    wordfinder_display_buttonguide.intValue = 0
+                }
+        )
 }
 
 
@@ -1013,7 +1041,7 @@ fun Buttonboxes() {
                 .border(border = BorderStroke(2.dp, Color.Black))
                 .clickable(onClick = {
                     wordfinder_display.intValue = 1
-                    })
+                })
         ) {
             Text(text = "Search", color = Color.Black, modifier = Modifier.align(Alignment.Center))
         }
