@@ -103,7 +103,7 @@ const val CLIENT_SECRET = "d65234627cc790cba662f6b3"
 // Access token that is used for calling to the API
 var accesstoken = ""
 
-// These are all of the variables that update whenever an image is called based off of its properties to allow for global use.
+// These are all the variables that update whenever an image is called based off of its properties to allow for global use.
 var id = 0
 var symbol_key = ""
 var name = ""
@@ -185,6 +185,8 @@ var linked_menu = mutableStateOf(0)
 var modifier_picker: Modifier = Modifier
 
 var menukeylist = mutableListOf<Int>()
+
+var wordfinder_path_ids = mutableListOf<Int>()
 
 
 
@@ -495,10 +497,18 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
         if (it.isLowerCase())
             it.titlecase()
         else it.toString() }
+    var zindex = 0.0f
     var height_dp = 16
     var width_dp = height_dp*3.0625
     var switchmenu by remember { mutableStateOf(false) }
     var switchmenu1 by remember { mutableStateOf(false) }
+    if (!wordfinder_path_ids.isEmpty()) {
+        println("Linked Menu: " + linked_menu.value)
+        println("Path: " + wordfinder_path_ids)
+        if (linked_menu.value == wordfinder_path_ids[1]) {
+            zindex = 1.0f
+        }
+    }
     Box() {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -506,6 +516,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                 .build(),
             "Picture of $name",
             modifier = Modifier
+                .zIndex(zindex)
                 .height(box_size+Vertical_Stretch+(box_padding*3))
                 .background(Color.White)
                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
@@ -533,6 +544,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
         }
     }
 }
+
 
 data class menutemplate(
     val id: Int, // ID of the current menu
@@ -848,6 +860,21 @@ fun getMenuPath(menuIndex: Int): String {
 
     return pathParts.joinToString(" > ")
 }
+fun setWordfinderPath(menuIndex: Int) {
+    val pathParts = mutableListOf<String>()
+    val visited = mutableSetOf<Int>()
+    var current: menutemplate? = MenuList[menuIndex]
+
+    wordfinder_path_ids.clear()
+
+    while (current != null) {
+        if (current.id in visited) break  // stops infinite loop
+        visited.add(current.id)
+        wordfinder_path_ids.add(0, current.id)
+        val parentId = current.parentId
+        current = if (parentId != null) MenuList.find { it.id == parentId } else null
+    }
+}
 
 @Composable
 fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, item_position: Int, total_avaliable_height: Dp, total_avaiable_width: Dp) {
@@ -922,8 +949,9 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
                 Text(text = "Find", textAlign = TextAlign.Center)
             }
             if (showButtonGuide) {
-                wordfinder_display.intValue = 0
+                setWordfinderPath(MenuList_element)
                 wordfinder_display_buttonguide.intValue += 1
+                wordfinder_display.intValue = 0
             }
         }
     }
@@ -931,13 +959,13 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
 
 @Composable
 fun ButtonGuide_Wordfinder() {
-    println("CALLED")
         Box(
             modifier = Modifier
                 .zIndex(2f)
                 .fillMaxSize()
                 .background(Color.Gray.copy(alpha = 0.5f))
                 .clickable {
+                    wordfinder_path_ids.clear()
                     wordfinder_display_buttonguide.intValue = 0
                 }
         )
