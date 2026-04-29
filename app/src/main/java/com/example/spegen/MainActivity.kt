@@ -1,12 +1,10 @@
 package com.example.spegen
 
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
@@ -22,7 +20,6 @@ import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.gson.responseObject
 import com.github.kittinunf.result.Result
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
@@ -37,10 +34,8 @@ import coil3.request.ImageRequest
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -49,51 +44,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.layout.FlowRowScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.displayCutoutPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextField
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.times
 import androidx.compose.ui.zIndex
-import kotlin.math.roundToInt
-import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.fromColorLong
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.compose.rememberLifecycleOwner
-import kotlinx.coroutines.launch
 import kotlin.collections.find
-import kotlin.math.absoluteValue
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.select
-import java.security.KeyStore
-import kotlin.math.min
 
 
 // Text box text variable
@@ -190,6 +160,8 @@ var menukeylist = mutableListOf<Int>()
 
 var wordfinder_path_ids = mutableListOf<Int>()
 
+var wordfinder_path_names = mutableListOf<String>()
+
 var folder_x = mutableFloatStateOf(0.0f)
 
 var folder_y = mutableFloatStateOf(0.0f)
@@ -207,22 +179,42 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            var isFirstDone by remember { mutableStateOf(false) }
             val a = remember { mutableIntStateOf(0) }
             MenuKeyGen()
             Screen()
             if (switchmenuparser.value > 0 && (wordfinder_display.intValue == a.intValue)) {
                 Column(modifier = modifier_picker) {
-                    MenuParser(MenuFinder(linked_menu.value))
+                    MenuParser(MenuFinder(linked_menu.value), onComplete = { isFirstDone = true })
                 }
             }
-            if (wordfinder_display_buttonguide.intValue >= 1) {
-                ButtonGuide_Wordfinder()
+            if (isFirstDone) {
+                Box()
+                {
+                    if (createclonefolder.value) {
+                        var index = 0
+                        for (i in 0 until (((MenuList[wordfinder_path_ids[0]]).folders).size)) {
+                            if (MenuList[wordfinder_path_ids[0]].folders[i] == wordfinder_path_names[1]) {
+                                index = i
+                            }
+                        }
+                        val x_offset = (index * (box_padding + box_size))
+                        val y_offset = (button_boxes_width * 2)
+                        println("MADE FOLDER")
+                        Surface(color = Color.Transparent) {
+                            Folder(
+                                folder_name,
+                                folder_image_url,
+                                folder_menu,
+                                folder_vertical_stretch,
+                                x_offset,
+                                y_offset,
+                                Modifier.zIndex(100f)
+                            )
+                        }
+                    }
+                }
             }
-            if (createclonefolder.value)
-            {
-                Folder(folder_name, folder_image_url, folder_menu, folder_vertical_stretch, folder_x.value, folder_y.value)
-            }
-
         }
     }
 }
@@ -510,24 +502,33 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int)
 
 @Composable
 @NonSkippableComposable
-fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp, x_offset: Float = 0.0f, y_offset: Float = 0.0f) {
+fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier) {
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
             it.titlecase()
         else it.toString() }
-    var zindex = 0.0f
     var height_dp = 16
     var width_dp = height_dp*3.0625
     var switchmenu by remember { mutableStateOf(false) }
     var switchmenu1 by remember { mutableStateOf(false) }
     var composableX by remember { mutableStateOf(0f) }
     var composableY by remember { mutableStateOf(0f) }
+    var temp_menu_storage = 0
 
     if (!wordfinder_path_ids.isEmpty()) {
-        if (wordfinder_path_ids.size >= 2)
-        {
-            if (LinkedMenu == wordfinder_path_ids[1]) {
-                zindex = 10000f
+        if (wordfinder_path_ids.size >= 2) {
+            println(LinkedMenu)
+            println(wordfinder_path_ids)
+            if (LinkedMenu == wordfinder_path_ids[1])
+            {
+                println("Step 2")
+                if (folder_y.floatValue == 0f && folder_x.floatValue == 0f) {
+                    println("SET VALS")
+                    folder_name = Name
+                    folder_image_url = image_url
+                    folder_menu = LinkedMenu
+                    folder_vertical_stretch = Vertical_Stretch
+                }
             }
         }
     }
@@ -538,22 +539,29 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                 .data(image_url)
                 .build(),
             "Picture of $name",
-            modifier = Modifier
-                .onGloballyPositioned { coordinates ->
-                    // Gets position relative to the root of the Compose content
-                    val offset = coordinates.positionInRoot()
-                    composableX = offset.x
-                    composableY = offset.y
-                }
-                .offset(x_offset.dp, y_offset.dp)
-                .zIndex(zindex)
+            modifier = modifier
+                .offset(x_offset, y_offset)
                 .height(box_size+Vertical_Stretch+(box_padding*3))
                 .background(Color.White)
                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                 .padding(box_padding)
                 .scale(1f)
                 .width(box_size)
+                .onGloballyPositioned { coordinates ->
+                    val offset = coordinates.positionInRoot()
+                    composableX = offset.x
+                    composableY = offset.y
+                }
                 .clickable(onClick = {
+                    if (!wordfinder_path_ids.isEmpty()) {
+                        if (wordfinder_path_ids.size >= 2) {
+                            if (LinkedMenu == wordfinder_path_ids[1]) {
+                                temp_menu_storage = wordfinder_path_ids[1]
+                                wordfinder_path_ids.remove(1)
+                                wordfinder_manager()
+                            }
+                        }
+                    }
                     if (switchmenu == false) {
                         switchmenu = !switchmenu
                     } else {
@@ -562,6 +570,21 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                     }
                 })
         )
+        if (!wordfinder_path_ids.isEmpty()) {
+            if (wordfinder_path_ids.size >= 2) {
+                if (LinkedMenu == temp_menu_storage)
+                {
+                    if (folder_y.floatValue == 0f && folder_x.floatValue == 0f) {
+                        folder_y.floatValue = composableX
+                        folder_x.floatValue = composableY
+                        folder_name = Name
+                        folder_image_url = image_url
+                        folder_menu = LinkedMenu
+                        folder_vertical_stretch = Vertical_Stretch
+                    }
+                }
+            }
+        }
         Text(
             text = name,
             color = Color.Black,
@@ -570,15 +593,21 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
             textAlign = TextAlign.Center
         )
         if (switchmenu or switchmenu1) {
-            MenuParser(MenuFinder(LinkedMenu))
+            MenuParser(MenuFinder(LinkedMenu),)
+        }
+        if (x_offset > 0.dp || y_offset > 0.dp) {
+            Row(modifier = Modifier.fillMaxSize())
+            {
+                if (wordfinder_display_buttonguide.intValue >= 1) {
+                    ButtonGuide_Wordfinder()
+                }
+            }
         }
     }
     if (!wordfinder_path_ids.isEmpty()) {
         if (wordfinder_path_ids.size >= 2)
         {
             if (LinkedMenu == wordfinder_path_ids[1]) {
-                folder_y.floatValue = composableX
-                folder_x.floatValue = composableY
                 folder_name = Name
                 folder_image_url = image_url
                 folder_vertical_stretch = Vertical_Stretch
@@ -623,7 +652,7 @@ fun MenuKeyGen() {
 
 @Composable
 @NonSkippableComposable
-fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
+fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier, onComplete: () -> Unit = {}) {
     var totalitems = ((screenWidth - (button_boxes_width * 2))/(box_size + (box_padding*2)))*((screenHeight-(static_row_height*2))/box_size)
     var total_box_size = box_size+(box_padding*2)
     val vertical_stretch = ((menu_height)-((((menu_height)/(total_box_size)).toInt())*total_box_size))
@@ -750,7 +779,7 @@ fun Menu(modifier: Modifier) {
                 .height(menu_height)
                 .offset(x = 0.dp, y = (static_row_height*2))
         ) {
-            MenuParser(MenuFinder(1))
+            MenuParser(MenuFinder(1),)
         }
     }
 }
@@ -895,10 +924,13 @@ fun getMenuPath(menuIndex: Int): String {
     val visited = mutableSetOf<Int>()
     var current: menutemplate? = MenuList[menuIndex]
 
+    wordfinder_path_names.clear()
+
     while (current != null) {
         if (current.id in visited) break  // stops infinite loop
         visited.add(current.id)
         pathParts.add(0, current.title)
+        wordfinder_path_names.add(0, current.title)
         val parentId = current.parentId
         current = if (parentId != null) MenuList.find { it.id == parentId } else null
     }
@@ -997,14 +1029,26 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
                 setWordfinderPath(MenuList_element)
                 wordfinder_display_buttonguide.intValue += 1
                 wordfinder_display.intValue = 0
+                wordfinder_manager()
             }
         }
     }
 }
 
+fun wordfinder_manager()
+{
+    if (wordfinder_path_ids.size > 1)
+    {
+        createclonefolder.value = true
+    }
+    else
+    {
+    }
+}
+
 @Composable
 fun ButtonGuide_Wordfinder() {
-        Box(
+        Row(
             modifier = Modifier
                 .zIndex(2f)
                 .fillMaxSize()
@@ -1012,8 +1056,10 @@ fun ButtonGuide_Wordfinder() {
                 .clickable {
                     wordfinder_path_ids.clear()
                     wordfinder_display_buttonguide.intValue = 0
-                }
+                    createclonefolder.value = false
+                },
         )
+        {}
 }
 
 
