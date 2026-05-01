@@ -173,7 +173,7 @@ var createclonesymbol = mutableStateOf(false)
 var wordfinder_target_is_symbol = false
 
 // Text padding for folder/symbol names. Minimum should be 5 dp or else issues will occur
-var item_text_padding = 5.dp
+var item_text_padding = 20.dp
 
 val item_positions = mutableStateMapOf<String, Offset>()
 
@@ -232,7 +232,7 @@ class MainActivity : ComponentActivity() {
                                     vertical_stretch,
                                     x_offset,
                                     y_offset,
-                                    Modifier.zIndex(100f)
+                                    Modifier.zIndex(1000f)
                                 )
                             }
                         }
@@ -532,6 +532,14 @@ fun InputBox_Symbol(index: Int) {
 @Composable
 @NonSkippableComposable
 fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier) {
+    if (x_offset > 0.dp || y_offset > 0.dp) {
+        Row(modifier = Modifier.fillMaxSize())
+        {
+            if (wordfinder_display_buttonguide.intValue >= 1) {
+                ButtonGuide_Wordfinder()
+            }
+        }
+    }
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
             it.titlecase()
@@ -585,26 +593,27 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                 })
         )
         Text(text = name, color = Color.Black, modifier = Modifier.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
-        if (x_offset > 0.dp || y_offset > 0.dp) {
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (wordfinder_display_buttonguide.intValue >= 1) {
-                    ButtonGuide_Wordfinder()
-                }
-            }
-        }
     }
 }
 
 @Composable
 @NonSkippableComposable
 fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier) {
+    if (x_offset > 0.dp || y_offset > 0.dp) {
+        Row(modifier = Modifier.fillMaxSize())
+        {
+            if (wordfinder_display_buttonguide.intValue >= 1) {
+                ButtonGuide_Wordfinder()
+            }
+        }
+    }
     val name = Name.replaceFirstChar {
         if (it.isLowerCase())
             it.titlecase()
         else it.toString() }
     var height_dp = 16
     var width_dp = height_dp*3.0625
-    Box(modifier = modifier.clip(RoundedCornerShape(40.dp)))
+    Box(modifier = modifier)
     {
         AsyncImage(
             model = ImageRequest.Builder(LocalContext.current)
@@ -636,6 +645,17 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                         linked_menu.value = LinkedMenu
                         switchmenuparser.value += 1
                     }
+                    if (wordfinder_path_ids.size <= 1 && !wordfinder_target_is_symbol)
+                    {
+                        wordfinder_path_ids.removeAt(0)
+                        wordfinder_path_ids.clear()
+                        wordfinder_path_names.clear()
+                        wordfinder_display_buttonguide.intValue = 0
+                        createclonefolder.value = false
+                        createclonesymbol.value = false
+                        linked_menu.value = LinkedMenu
+                        switchmenuparser.value += 1
+                    }
                 })
         )
         Text(
@@ -644,14 +664,6 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
             modifier = Modifier.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter),
             textAlign = TextAlign.Center
         )
-        if (x_offset > 0.dp || y_offset > 0.dp) {
-            Row(modifier = Modifier.fillMaxSize())
-            {
-                if (wordfinder_display_buttonguide.intValue >= 1) {
-                    ButtonGuide_Wordfinder()
-                }
-            }
-        }
     }
 }
 
