@@ -1,0 +1,1 @@
+"SpeGen is an AAC application that is built to be useful and intuitive"
