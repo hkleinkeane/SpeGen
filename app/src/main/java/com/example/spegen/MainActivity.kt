@@ -176,9 +176,6 @@ var item_text_padding = 5.dp
 
 val item_positions = mutableStateMapOf<String, Offset>()
 
-
-
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
