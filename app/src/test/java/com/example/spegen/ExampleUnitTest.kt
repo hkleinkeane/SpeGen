@@ -1,4 +1,4 @@
-package com.example.spegen
+package com.hkleinkeane.spegen
 
 import org.junit.Test
 

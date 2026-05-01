@@ -1,4 +1,4 @@
-package com.example.spegen.ui.theme
+package com.hkleinkeane.spegen.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

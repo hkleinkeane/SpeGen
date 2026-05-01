@@ -1,4 +1,4 @@
-package com.example.spegen.ui.theme
+package com.hkleinkeane.spegen.ui.theme
 
 import android.app.Activity
 import android.os.Build

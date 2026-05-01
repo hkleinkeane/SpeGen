@@ -1,4 +1,4 @@
-package com.example.spegen
+package com.hkleinkeane.spegen
 
 import android.content.res.Configuration
 import android.os.Bundle
@@ -155,7 +155,7 @@ var wordfinder_display_buttonguide = mutableIntStateOf(0)
 
 var switchmenuparser = mutableStateOf(0)
 
-var linked_menu = mutableStateOf(0)
+var linked_menu = mutableStateOf(1)
 
 var modifier_picker: Modifier = Modifier
 
@@ -186,11 +186,6 @@ class MainActivity : ComponentActivity() {
             val a = remember { mutableIntStateOf(0) }
             MenuKeyGen()
             Screen()
-            if (switchmenuparser.value > 0 && (wordfinder_display.intValue == a.intValue)) {
-                Column(modifier = modifier_picker) {
-                    MenuParser(MenuFinder(linked_menu.value))
-                }
-            }
             Box()
             {
                 if (createclonefolder.value) {
@@ -659,7 +654,7 @@ data class menutemplate(
     val parentId: Int?, // ID of the parent menu
     val item_list: List<String>, // List of the names of all items, both folders and symbols
     val pointers: List<Any>, // Pointers to be used in MenuFinder to find the corresponding menu for a folder to link to. False if item is a symbol since it has no pointer.
-    val tts: List<Any>, // 0 is for appending to the input box without instantly playing, 1 is for instantly playing in tts engine without appending to input box, 2 is for both appending to text box and playing in tts engine instantly. If a value is false item is a folder that doesnt have tts.
+    val tts: List<Any>, // 0 is for appending to the input box without instantly playing, 1 is for instantly playing in tts engine without appending to input box, 2 is for both appending to text box and playing in tts engine instantly. If a value is false item is a folder that doesn't have tts.
     val item_type: List<Boolean>, // False is for folder, true is for symbol
 )
 
@@ -810,7 +805,7 @@ fun Menu(modifier: Modifier) {
                 .height(menu_height)
                 .offset(x = 0.dp, y = (static_row_height*2))
         ) {
-            MenuParser(MenuFinder(1))
+            MenuParser(MenuFinder(linked_menu.value))
         }
     }
 }
