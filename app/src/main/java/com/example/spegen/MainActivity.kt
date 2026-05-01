@@ -1,5 +1,6 @@
 package com.hkleinkeane.spegen
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
@@ -302,6 +303,15 @@ fun rememberTextToSpeech(): MutableState<TextToSpeech?> {
     DisposableEffect(context) {
         val textToSpeech = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
+                val result = tts.value?.setLanguage(Locale.US)
+                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED)
+                {
+                    val installIntent = Intent().apply {
+                        action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(installIntent)
+                }
                 tts.value?.language = Locale.US
             }
         }

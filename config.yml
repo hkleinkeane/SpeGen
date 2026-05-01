@@ -1,0 +1,7 @@
+# see https://gitlab.com/fdroid/fdroidserver/blob/2.4.3/examples/config.yml
+sdk_path: $ANDROID_HOME
+keystore: keystore.p12
+keystorepass: KkrEg7NjGGFa+w7qcimK+5KAdKoD9zG5dwxfP6vZuHs=
+keypass: KkrEg7NjGGFa+w7qcimK+5KAdKoD9zG5dwxfP6vZuHs=
+repo_keyalias: 1.9.168.192.in-addr.arpa
+keydname: CN=1.9.168.192.in-addr.arpa, OU=F-Droid
