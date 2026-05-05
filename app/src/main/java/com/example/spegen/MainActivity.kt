@@ -172,7 +172,7 @@ var createclonesymbol = mutableStateOf(false)
 
 var wordfinder_target_is_symbol = false
 
-// Text padding for folder/symbol names. Minimum should be 5 dp or else issues will occur
+// Text padding for folder/symbol names. Minimum should be 20 dp or else issues will occur
 var item_text_padding = 20.dp
 
 val item_positions = mutableStateMapOf<String, Offset>()
@@ -592,7 +592,12 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                     }
                 })
         )
-        Text(text = name, color = Color.Black, modifier = Modifier.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
+        var mod = Modifier.zIndex(1f)
+        if (modifier != Modifier)
+        {
+            mod = Modifier.zIndex(1000f)
+        }
+        Text(text = name, color = Color.Black, modifier = mod.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
     }
 }
 
@@ -645,7 +650,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                         linked_menu.value = LinkedMenu
                         switchmenuparser.value += 1
                     }
-                    if (wordfinder_path_ids.size <= 1 && !wordfinder_target_is_symbol)
+                    if (wordfinder_path_ids.size >= 1 && !wordfinder_target_is_symbol)
                     {
                         wordfinder_path_ids.removeAt(0)
                         wordfinder_path_ids.clear()
@@ -658,10 +663,15 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                     }
                 })
         )
+        var mod = Modifier.zIndex(1f)
+        if (modifier != Modifier)
+        {
+            mod = Modifier.zIndex(1000f)
+        }
         Text(
             text = name,
             color = Color.Black,
-            modifier = Modifier.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter),
+            modifier = mod.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter),
             textAlign = TextAlign.Center
         )
     }
