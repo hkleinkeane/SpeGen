@@ -15,6 +15,7 @@
             android:exported="true"
             android:theme="@style/Theme.SpeGen">
             <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>

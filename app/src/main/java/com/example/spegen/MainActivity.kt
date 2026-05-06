@@ -6,17 +6,55 @@ import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.times
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.github.kittinunf.fuel.Fuel
 import com.github.kittinunf.fuel.gson.responseObject
 import com.github.kittinunf.result.Result
@@ -27,47 +65,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import java.util.Locale
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxSize
-import coil3.request.ImageRequest
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.Surface
-import androidx.compose.material3.TextField
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.times
-import androidx.compose.ui.zIndex
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
-import kotlin.collections.find
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.geometry.Offset
 
 
 // Text box text variable
@@ -177,13 +174,13 @@ var item_text_padding = 20.dp
 
 val item_positions = mutableStateMapOf<String, Offset>()
 
+var tts_data_found = mutableStateOf(false)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            val a = remember { mutableIntStateOf(0) }
-            MenuKeyGen()
+        setContent { MenuKeyGen()
             Screen()
             Box()
             {
@@ -301,11 +298,11 @@ fun GetScreenDimensions() {
 fun rememberTextToSpeech(): MutableState<TextToSpeech?> {
     // Handles TTS and its properties
     val context = LocalContext.current
-    DisposableEffect(context) {
+    DisposableEffect(Unit) {
         val textToSpeech = TextToSpeech(context) { status ->
             if (status == TextToSpeech.SUCCESS) {
-                val result = tts.value?.setLanguage(Locale.US)
-                if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED)
+                val result = tts.value?.setLanguage(Locale.getDefault())
+                if ((result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) && !tts_data_found.value)
                 {
                     val installIntent = Intent().apply {
                         action = TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA
@@ -313,7 +310,10 @@ fun rememberTextToSpeech(): MutableState<TextToSpeech?> {
                     }
                     context.startActivity(installIntent)
                 }
-                tts.value?.language = Locale.US
+                if (!(result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED))
+                {
+                    tts_data_found.value = true
+                }
             }
         }
 
@@ -443,7 +443,7 @@ fun Static_Row_Needs() {
             Box(
                 // FIX Y OFFSET
                 modifier = Modifier
-                    .offset((x_offset+(width*i)), y_offset)
+                    .offset((x_offset + (width * i)), y_offset)
                     .width(width)
                     .height(static_row_height)
                     .background(color = box_color)
@@ -523,7 +523,10 @@ fun InputBox_Symbol(index: Int) {
         Text(
             text = name,
             color = Color.Black,
-            modifier = Modifier.padding(2.dp).height(height_dp.dp).width(width_dp.dp)
+            modifier = Modifier
+                .padding(2.dp)
+                .height(height_dp.dp)
+                .width(width_dp.dp)
                 .align(Alignment.BottomCenter),
             textAlign = TextAlign.Center)
     }
@@ -555,7 +558,7 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
             "Picture of $Name",
             modifier = modifier
                 .offset(x_offset, y_offset)
-                .height(box_size+Vertical_Stretch+(box_padding*3))
+                .height(box_size + Vertical_Stretch + (box_padding * 3))
                 .background(Color.White)
                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                 .padding(box_padding)
@@ -597,7 +600,11 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
         {
             mod = Modifier.zIndex(1000f)
         }
-        Text(text = name, color = Color.Black, modifier = mod.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter), textAlign = TextAlign.Center)
+        Text(text = name, color = Color.Black, modifier = mod
+            .padding(item_text_padding)
+            .height(height_dp.dp)
+            .width(width_dp.dp)
+            .align(Alignment.BottomCenter), textAlign = TextAlign.Center)
     }
 }
 
@@ -627,7 +634,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
             "Picture of $name",
             modifier = Modifier
                 .offset(x_offset, y_offset)
-                .height(box_size+Vertical_Stretch+(box_padding*3))
+                .height(box_size + Vertical_Stretch + (box_padding * 3))
                 .background(Color.White)
                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                 .padding(box_padding)
@@ -644,14 +651,11 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                                 wordfinder_manager()
                             }
                         }
-                    }
-                    else
-                    {
+                    } else {
                         linked_menu.value = LinkedMenu
                         switchmenuparser.value += 1
                     }
-                    if (wordfinder_path_ids.size >= 1 && !wordfinder_target_is_symbol)
-                    {
+                    if (wordfinder_path_ids.size >= 1 && !wordfinder_target_is_symbol) {
                         wordfinder_path_ids.removeAt(0)
                         wordfinder_path_ids.clear()
                         wordfinder_path_names.clear()
@@ -671,7 +675,11 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
         Text(
             text = name,
             color = Color.Black,
-            modifier = mod.padding(item_text_padding).height(height_dp.dp).width(width_dp.dp).align(Alignment.BottomCenter),
+            modifier = mod
+                .padding(item_text_padding)
+                .height(height_dp.dp)
+                .width(width_dp.dp)
+                .align(Alignment.BottomCenter),
             textAlign = TextAlign.Center
         )
     }
@@ -738,7 +746,9 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
     if (switchmenuparser.value > 0) {
         key(switchmenuparser.value) {
             FlowRow(
-                modifier = modifier.fillMaxWidth().fillMaxHeight(),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 var itemsdisplayed = 0
@@ -777,7 +787,9 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
     else {
         key(menukeylist[MenuList.indexOf(menutemplate)]) {
             FlowRow(
-                modifier = modifier.fillMaxWidth().fillMaxHeight(),
+                modifier = modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 var itemsdisplayed = 0
@@ -833,7 +845,7 @@ fun Menu(modifier: Modifier) {
             modifier = modifier
                 .width(menu_width)
                 .height(menu_height)
-                .offset(x = 0.dp, y = (static_row_height*2))
+                .offset(x = 0.dp, y = (static_row_height * 2))
         ) {
             MenuParser(MenuFinder(linked_menu.value))
         }
@@ -865,17 +877,19 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
         (screenHeight - static_row_height - static_row_height) // Determines Y offset by subtracting height from the total screen width
     var x_offset =
         (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
-    Column(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
+    Column(modifier = Modifier
+        .fillMaxWidth()
+        .fillMaxHeight()) {
         Box(
             // FIX Y OFFSET
             modifier = modifier
-                .offset((x_offset+(width*i)), y_offset)
+                .offset((x_offset + (width * i)), y_offset)
                 .width(width)
                 .height(static_row_height)
                 .background(color = box_color)
                 .border(border = BorderStroke(border_size, border_color))
                 .clickable(onClick = {
-                    linked_menu.value = linked_menus[i]?: 0
+                    linked_menu.value = linked_menus[i] ?: 0
                     switchmenuparser.value += 1
                 })
         ) {
@@ -886,7 +900,10 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
             )
         }
     }
-    modifier_picker = Modifier.width(screenWidth-(button_boxes_width*2)).height(screenHeight-(static_row_height*4)).offset(0.dp, button_boxes_width*2)
+    modifier_picker = Modifier
+        .width(screenWidth - (button_boxes_width * 2))
+        .height(screenHeight - (static_row_height * 4))
+        .offset(0.dp, button_boxes_width * 2)
 }
 
 
@@ -906,10 +923,15 @@ fun WordFinder() {
     val flowrow_height_space = box_height-row_height
     val flowrow_width_space = box_width
     val scrollState = rememberScrollState()
-    Box(modifier = Modifier.fillMaxSize().background(Color(red = 230, green = 227, blue = 227, alpha = 100))) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Color(red = 230, green = 227, blue = 227, alpha = 100))) {
         Box(
             modifier = Modifier
-                .offset(x = (screenWidth.value * 0.1).dp, y = ((screenHeight.value - static_row_height.value) * 0.1).dp)
+                .offset(
+                    x = (screenWidth.value * 0.1).dp,
+                    y = ((screenHeight.value - static_row_height.value) * 0.1).dp
+                )
                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                 .clip(RoundedCornerShape(40.dp))
                 .height(box_height)
@@ -920,7 +942,9 @@ fun WordFinder() {
             var text by remember { mutableStateOf("") }
 
             Row(
-                modifier = Modifier.fillMaxWidth().height(row_height),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(row_height),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -952,7 +976,11 @@ fun WordFinder() {
             if (showRow) {
                 Column {
                     FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp).offset(y = row_height).verticalScroll(scrollState),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .offset(y = row_height)
+                            .verticalScroll(scrollState),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         // Dropdown Menu for Suggestions
@@ -1140,7 +1168,7 @@ fun Buttonboxes() {
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset, y_offset+140.dp)
+                    .offset(x_offset, y_offset + 140.dp)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1157,7 +1185,7 @@ fun Buttonboxes() {
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset-70.dp)
+                    .offset(x_offset - 70.dp)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1170,7 +1198,7 @@ fun Buttonboxes() {
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset-70.dp, y_offset+140.dp)
+                    .offset(x_offset - 70.dp, y_offset + 140.dp)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1204,7 +1232,7 @@ fun Buttonboxes() {
     Column() {
         Box(
             modifier = Modifier
-                .offset(x_offset, y_offset+70.dp)
+                .offset(x_offset, y_offset + 70.dp)
                 .size(button_boxes_width)
                 .background(color = Color.White)
                 .border(border = BorderStroke(2.dp, Color.Black))
@@ -1221,7 +1249,9 @@ fun Buttonboxes() {
 
 @Composable
 fun Screen() {
-    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .background(Color.White)) {
         tts = rememberTextToSpeech()
         val a = remember { mutableIntStateOf(0) }
         GetScreenDimensions()
