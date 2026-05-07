@@ -434,7 +434,7 @@ fun Static_Row_Needs() {
     var border_size = 2.dp // Set as var to be able to be customized by user later
     var border_color = Color.Black // Set as var to be able to be customized by user later
     var width = (screenWidth/static_terms.size.dp).dp // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
-    static_row_height = (screenHeight.value*((70.dp/screenHeight).dp).value).dp // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
+    static_row_height = screenHeight * (1f / 8f) // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
     var y_offset = (screenHeight-static_row_height) // Determines Y offset by subtracting height from the total screen width
     var x_offset = (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
     for (i in 0 until static_terms.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
@@ -473,7 +473,7 @@ fun InputBox(modifier: Modifier) {
         LazyRow(
             modifier = modifier
                 .width(screenWidth - (button_boxes_width * 2))
-                .height(button_boxes_width * 2)
+                .height(screenHeight * (1f / 4f))
                 .background(Color.White)
                 .border(4.dp, Color.Black)
                 .clickable {
@@ -872,7 +872,7 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
     var width =
         (screenWidth / menu_terms.size) // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
     static_row_height =
-        (screenHeight.value * ((70.dp / screenHeight).dp).value).dp // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
+        screenHeight * (1f / 8f) // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
     var y_offset =
         (screenHeight - static_row_height - static_row_height) // Determines Y offset by subtracting height from the total screen width
     var x_offset =
@@ -1144,7 +1144,8 @@ fun ButtonGuide_Wordfinder() {
 @Composable
 fun Buttonboxes() {
     val a = remember {mutableIntStateOf(0)}
-    button_boxes_width = 70.dp
+    println(screenHeight)
+    button_boxes_width = (screenHeight.value*(1f/8f)).dp
     val x_offset = ((screenWidth - button_boxes_width).value).dp
     val y_offset = 0.dp
     var switchmenu by remember { mutableStateOf(false) }
@@ -1161,14 +1162,14 @@ fun Buttonboxes() {
                     .clickable(onClick = {
                     })
             ) {
-                Text(text = "Settings", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+                Text(text = "Settings", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
             }
         }
         //BOTTOM RIGHT
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset, y_offset + 140.dp)
+                    .offset(x_offset, y_offset + button_boxes_width*2)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1178,27 +1179,27 @@ fun Buttonboxes() {
                         }
                     })
             ) {
-                Text(text = "Stop", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+                Text(text = "Stop", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
             }
         }
         //TOP LEFT
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset - 70.dp)
+                    .offset(x_offset - button_boxes_width)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
                     .clickable(onClick = {
                     })
             ) {
-                Text(text = "Keyboard", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+                Text(text = "Keyboard", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
             }}
         //MIDDLE LEFT
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset - 70.dp, y_offset + 140.dp)
+                    .offset(x_offset - button_boxes_width, y_offset + button_boxes_width*2)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1206,7 +1207,7 @@ fun Buttonboxes() {
                         selected_symbols.clear()
                     })
             ) {
-                Text(text = "Clear", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+                Text(text = "Clear", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
             }
 
         }
@@ -1214,7 +1215,7 @@ fun Buttonboxes() {
         Column() {
             Box(
                 modifier = Modifier
-                    .offset(x_offset - 70.dp, y_offset + 70.dp)
+                    .offset(x_offset - button_boxes_width, y_offset + button_boxes_width)
                     .size(button_boxes_width)
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
@@ -1224,7 +1225,7 @@ fun Buttonboxes() {
                         }
                     })
             ) {
-                Text(text = "Delete", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+                Text(text = "Delete", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
             }
         }
     }
@@ -1232,7 +1233,7 @@ fun Buttonboxes() {
     Column() {
         Box(
             modifier = Modifier
-                .offset(x_offset, y_offset + 70.dp)
+                .offset(x_offset, y_offset + button_boxes_width)
                 .size(button_boxes_width)
                 .background(color = Color.White)
                 .border(border = BorderStroke(2.dp, Color.Black))
@@ -1240,7 +1241,7 @@ fun Buttonboxes() {
                     wordfinder_display.intValue = 1
                 })
         ) {
-            Text(text = "Search", color = Color.Black, modifier = Modifier.align(Alignment.Center))
+            Text(text = "Search", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
         }
     }
 }
