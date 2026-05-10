@@ -66,6 +66,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import java.util.Locale
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 
 
 // Text box text variable
@@ -778,48 +780,45 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
 
         menutemplate.item_list.forEach { query ->
             val res = useApiWithToken(accesstoken, query)
-            item_names.add(res?.name ?: "")
+            item_names.add(query)
             item_urls.add(res?.image_url ?: "")
         }
     }
     current_menu_id = menutemplate.id
     if (switchmenuparser.value > 0) {
         key(switchmenuparser.value) {
-            val scrollState = rememberScrollState()
+            val item_width = box_size + (box_padding * 2)
+            val item_height_total = box_size + vertical_stretch + (box_padding * 3)
+            val items_per_row = (menu_width.value / item_width.value).toInt().coerceAtLeast(1)
+            val rows_per_page = (menu_height.value / item_height_total.value).toInt().coerceAtLeast(1)
+            val items_per_page = (items_per_row * rows_per_page).coerceAtLeast(1)
+            val total_items = menutemplate.item_list.size
+            val page_count = ((total_items + items_per_page - 1) / items_per_page).coerceAtLeast(1)
 
-            Row(
-                modifier = Modifier.horizontalScroll(scrollState)
-            ) {
+            val pagerState = rememberPagerState(pageCount = { page_count })
+
+            HorizontalPager(state = pagerState,
+            modifier = modifier.fillMaxWidth().fillMaxHeight()
+            ) { page ->
+                val startIndex = page * items_per_page
+                val endIndex = minOf(startIndex + items_per_page, total_items)
+
                 FlowRow(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    var itemsdisplayed = 0
-                    for (i in 0 until menutemplate.item_list.size) {
+                    for (i in startIndex until endIndex) {
                         if (i >= item_names.size || i >= item_urls.size) break
                         val itemKey = "${menutemplate.id}-$i"
                         Box(modifier = Modifier.onGloballyPositioned { coords ->
-                            item_positions[itemKey] = coords.positionInRoot()
+                        item_positions[itemKey] = coords.positionInRoot()
                         }) {
                             if (menutemplate.item_type[i]) {
-                                Symbol(
-                                    item_names[i],
-                                    item_urls[i],
-                                    vertical_stretch,
-                                    menutemplate.tts[i] as Int
-                                )
+                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
                             } else {
-                                Folder(
-                                    item_names[i],
-                                    item_urls[i],
-                                    menutemplate.pointers[i] as Int,
-                                    vertical_stretch
-                                )
+                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
                             }
                         }
-                        itemsdisplayed += 1
                     }
                 }
             }
@@ -827,36 +826,58 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
     }
     else {
         key(menukeylist[MenuList.indexOf(menutemplate)]) {
-            val scrollState = rememberScrollState()
+            val item_width = box_size + (box_padding * 2)
+            val item_height_total = box_size + vertical_stretch + (box_padding * 3)
+            val items_per_row = (menu_width.value / item_width.value).toInt().coerceAtLeast(1)
+            val rows_per_page = (menu_height.value / item_height_total.value).toInt().coerceAtLeast(1)
+            val items_per_page = (items_per_row * rows_per_page).coerceAtLeast(1)
+            val total_items = menutemplate.item_list.size
+            val page_count = ((total_items + items_per_page - 1) / items_per_page).coerceAtLeast(1)
 
-            Row(
-                modifier = Modifier.horizontalScroll(scrollState)
-            ) {
+            val pagerState = rememberPagerState(pageCount = { page_count })
+            HorizontalPager(state = pagerState,
+                modifier = modifier.fillMaxWidth().fillMaxHeight()
+            ) { page ->
+                val startIndex = page * items_per_page
+                val endIndex = minOf(startIndex + items_per_page, total_items)
+                var items_per_page_displayed = 0
+
                 FlowRow(
-                    modifier = modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(),
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    var itemsdisplayed = 0
-                    for (i in 0 until menutemplate.item_list.size) {
+                    for (i in startIndex until endIndex) {
                         if (i >= item_names.size || i >= item_urls.size) break
-                        if (menutemplate.item_type[i]) {
-                            Symbol(
-                                item_names[i],
-                                item_urls[i],
-                                vertical_stretch,
-                                menutemplate.tts[i] as Int
+                        val itemKey = "${menutemplate.id}-$i"
+                        Box(modifier = Modifier.onGloballyPositioned { coords ->
+                            item_positions[itemKey] = coords.positionInRoot()
+                        }) {
+                            if (menutemplate.item_type[i]) {
+                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
+                            } else {
+                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
+                            }
+                            items_per_page_displayed += 1
+                        }
+                    }
+                    if (items_per_page_displayed < items_per_page)
+                    {
+                        for (i in 0 until items_per_page-items_per_page_displayed)
+                        {
+                            Box(
+                                modifier = Modifier
+                            .background(Color.White)
+                            .border(
+                                width = 4.dp,
+                                color = Color.Black,
+                                shape = RoundedCornerShape(40.dp)
                             )
-                        } else {
-                            Folder(
-                                item_names[i],
-                                item_urls[i],
-                                menutemplate.pointers[i] as Int,
-                                vertical_stretch
+                            .padding(box_padding)
+                            .scale(1f)
+                            .height(box_size + vertical_stretch + box_padding)
+                            .width(box_size)
                             )
                         }
-                        itemsdisplayed += 1
                     }
                 }
             }
@@ -1276,7 +1297,7 @@ fun Buttonboxes() {
     Column() {
         Box(
             modifier = Modifier
-                .offset(x_offset - button_boxes_width, y_offset - button_boxes_width*2)
+                .offset(x_offset - button_boxes_width, y_offset + button_boxes_width*2)
                 .width(button_boxes_width*2)
                 .height(button_boxes_width)
                 .background(color = Color.White)
