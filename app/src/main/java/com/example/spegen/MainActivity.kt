@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -129,11 +130,47 @@ var static_row_height = 0.dp
 
 var button_boxes_width = 0.dp
 
-val home = menutemplate(1, "Menu", 1, listOf("My", "i", "see", "dog", "moose", "1", "2", "3", "4", "5", "6", "i"), listOf(2, false, false, false, false, false, false, false, false, false, false, false), listOf(false, 1,1,1,1,1,1,1,1,1,1,1, false), listOf(false, true, true, true, true, true, true, true, true, true, true, true, false))
+val home = menutemplate(
+    1, "Home", 1,
+    listOf("I", "want", "more", "help", "yes", "no", "stop", "please", "People", "Actions", "Food", "Feelings"),
+    listOf(false, false, false, false, false, false, false, false, 2, 3, 4, 5),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2, false, false, false, false),
+    listOf(true, true, true, true, true, true, true, true, false, false, false, false)
+)
 
-val my = menutemplate(2, "My", 1, listOf("I", "I", "me", "mine", "eye", "1", "2", "10", "4", "5", "6", "1938", "i", "god"), listOf(1, false, false, false, false, false, false, false, false, false, false, false, false, 1), listOf(false, 1,1,1,1,1,1,1,1,1,1,1,1, false), listOf(false, true, true, true, true, true, true, true, true, true, true, true, true, false))
+val people = menutemplate(
+    2, "People", 1,
+    listOf("you", "me", "mom", "dad", "sister", "brother", "friend", "teacher"),
+    listOf(false, false, false, false, false, false, false, false),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2),
+    listOf(true, true, true, true, true, true, true, true)
+)
 
-var MenuList = listOf<menutemplate>(home, my)
+val actions = menutemplate(
+    3, "Actions", 1,
+    listOf("eat", "drink", "play", "go", "sleep", "read", "watch", "listen"),
+    listOf(false, false, false, false, false, false, false, false),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2),
+    listOf(true, true, true, true, true, true, true, true)
+)
+
+val food = menutemplate(
+    4, "Food", 1,
+    listOf("water", "milk", "apple", "banana", "sandwich", "pizza", "cookie", "snack"),
+    listOf(false, false, false, false, false, false, false, false),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2),
+    listOf(true, true, true, true, true, true, true, true)
+)
+
+val feelings = menutemplate(
+    5, "Feelings", 1,
+    listOf("happy", "sad", "tired", "sick", "hungry", "thirsty", "scared", "excited"),
+    listOf(false, false, false, false, false, false, false, false),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2),
+    listOf(true, true, true, true, true, true, true, true)
+)
+
+var MenuList = listOf<menutemplate>(home, people, actions, food, feelings)
 
 var box_size = 100.dp
 
@@ -175,6 +212,8 @@ var item_text_padding = 20.dp
 val item_positions = mutableStateMapOf<String, Offset>()
 
 var tts_data_found = mutableStateOf(false)
+
+var current_menu_id = 0
 
 
 class MainActivity : ComponentActivity() {
@@ -743,91 +782,82 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
             item_urls.add(res?.image_url ?: "")
         }
     }
+    current_menu_id = menutemplate.id
     if (switchmenuparser.value > 0) {
         key(switchmenuparser.value) {
-            FlowRow(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            val scrollState = rememberScrollState()
+
+            Row(
+                modifier = Modifier.horizontalScroll(scrollState)
             ) {
-                var itemsdisplayed = 0
-                for (i in 0 until menutemplate.item_list.size) {
-                    if (i >= item_names.size || i >= item_urls.size) break
-                    val itemKey = "${menutemplate.id}-$i"
-                    Box(modifier = Modifier.onGloballyPositioned { coords ->
-                        item_positions[itemKey] = coords.positionInRoot()
-                    }) {
-                        if (menutemplate.item_type[i]) {
-                            Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
-                        } else {
-                            Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
+                FlowRow(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    var itemsdisplayed = 0
+                    for (i in 0 until menutemplate.item_list.size) {
+                        if (i >= item_names.size || i >= item_urls.size) break
+                        val itemKey = "${menutemplate.id}-$i"
+                        Box(modifier = Modifier.onGloballyPositioned { coords ->
+                            item_positions[itemKey] = coords.positionInRoot()
+                        }) {
+                            if (menutemplate.item_type[i]) {
+                                Symbol(
+                                    item_names[i],
+                                    item_urls[i],
+                                    vertical_stretch,
+                                    menutemplate.tts[i] as Int
+                                )
+                            } else {
+                                Folder(
+                                    item_names[i],
+                                    item_urls[i],
+                                    menutemplate.pointers[i] as Int,
+                                    vertical_stretch
+                                )
+                            }
                         }
+                        itemsdisplayed += 1
                     }
-                    itemsdisplayed += 1
-                }
-                for (i in 0 until totalitems.toInt() - (itemsdisplayed)) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color.White)
-                            .border(
-                                width = 4.dp,
-                                color = Color.Black,
-                                shape = RoundedCornerShape(40.dp)
-                            )
-                            .padding(box_padding)
-                            .scale(1f)
-                            .height(box_size + vertical_stretch + box_padding)
-                            .width(box_size)
-                    )
                 }
             }
         }
     }
     else {
         key(menukeylist[MenuList.indexOf(menutemplate)]) {
-            FlowRow(
-                modifier = modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                horizontalArrangement = Arrangement.SpaceBetween
+            val scrollState = rememberScrollState()
+
+            Row(
+                modifier = Modifier.horizontalScroll(scrollState)
             ) {
-                var itemsdisplayed = 0
-                for (i in 0 until menutemplate.item_list.size) {
-                    if (i >= item_names.size || i >= item_urls.size) break
-                    if (menutemplate.item_type[i])
-                    {
-                        Symbol(
-                            item_names[i],
-                            item_urls[i],
-                            vertical_stretch,
-                            menutemplate.tts[i] as Int
-                        )
-                    }
-                    else {
-                        Folder(
-                            item_names[i],
-                            item_urls[i],
-                            menutemplate.pointers[i] as Int,
-                            vertical_stretch
-                        )
-                    }
-                    itemsdisplayed += 1
-                }
-                for (i in 0 until totalitems.toInt() - (itemsdisplayed)) {
-                    Box(
-                        modifier = Modifier
-                            .background(Color.White)
-                            .border(
-                                width = 4.dp,
-                                color = Color.Black,
-                                shape = RoundedCornerShape(40.dp)
+                FlowRow(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    var itemsdisplayed = 0
+                    for (i in 0 until menutemplate.item_list.size) {
+                        if (i >= item_names.size || i >= item_urls.size) break
+                        if (menutemplate.item_type[i]) {
+                            Symbol(
+                                item_names[i],
+                                item_urls[i],
+                                vertical_stretch,
+                                menutemplate.tts[i] as Int
                             )
-                            .padding(box_padding)
-                            .scale(1f)
-                            .height(box_size + vertical_stretch + box_padding)
-                            .width(box_size)
-                    )
+                        } else {
+                            Folder(
+                                item_names[i],
+                                item_urls[i],
+                                menutemplate.pointers[i] as Int,
+                                vertical_stretch
+                            )
+                        }
+                        itemsdisplayed += 1
+                    }
                 }
             }
         }
@@ -854,23 +884,22 @@ fun Menu(modifier: Modifier) {
 
 @Composable
 fun MenuRow(modifier: Modifier) {
-    val menu_terms: MutableList<String> =
-        mutableListOf("Home", "Temp", "Temp2", "Temp3", "Temp4", "Temp5")
-    for (i in 0 until menu_terms.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
+    val menu_terms_ids: MutableList<Int> =
+        mutableListOf(0, 2, 3, 4, 5)
+    for (i in 0 until menu_terms_ids.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
     {
-        Menurowbox(modifier, i, menu_terms)
+        Menurowbox(modifier, i, menu_terms_ids)
     }
 }
 
 @Composable
-fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
-    val linked_menus: MutableList<Int?> = mutableListOf(0, null, null, null, null, null)
+fun Menurowbox(modifier: Modifier, i: Int, menu_terms_ids: MutableList<Int>) {
     var text_color = Color.Black // Set as var to be able to be customized by user later
     var box_color = Color.White // Set as var to be able to be customized by user later
     var border_size = 2.dp // Set as var to be able to be customized by user later
     var border_color = Color.Black // Set as var to be able to be customized by user later
     var width =
-        (screenWidth / menu_terms.size) // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
+        (screenWidth / menu_terms_ids.size) // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
     static_row_height =
         screenHeight * (1f / 8f) // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
     var y_offset =
@@ -889,12 +918,12 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms: MutableList<String>) {
                 .background(color = box_color)
                 .border(border = BorderStroke(border_size, border_color))
                 .clickable(onClick = {
-                    linked_menu.value = linked_menus[i] ?: 0
+                    linked_menu.value = menu_terms_ids[i]
                     switchmenuparser.value += 1
                 })
         ) {
             Text(
-                text = menu_terms[i],
+                text = MenuFinder(menu_terms_ids[i]).title,
                 color = text_color,
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -1242,6 +1271,24 @@ fun Buttonboxes() {
                 })
         ) {
             Text(text = "Search", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
+        }
+    }
+    Column() {
+        Box(
+            modifier = Modifier
+                .offset(x_offset - button_boxes_width, y_offset - button_boxes_width*2)
+                .width(button_boxes_width*2)
+                .height(button_boxes_width)
+                .background(color = Color.White)
+                .border(border = BorderStroke(2.dp, Color.Black))
+                .clickable(onClick = {
+                    if (MenuFinder(current_menu_id).parentId != MenuFinder(current_menu_id).id) {
+                        linked_menu.value = MenuFinder(current_menu_id).parentId!!
+                        switchmenuparser.value += 1
+                    }
+                })
+        ) {
+            Text(text = "Back", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
         }
     }
 }
