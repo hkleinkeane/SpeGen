@@ -217,6 +217,8 @@ var tts_data_found = mutableStateOf(false)
 
 var current_menu_id = 0
 
+val wordfinder_highlight_index = mutableIntStateOf(-1)
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -245,6 +247,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                         }
+                        wordfinder_highlight_index.intValue = index
                         if (!MenuFinder(wordfinder_path_ids[0]).item_type[index]) {
                             var total_box_size = box_size + (box_padding * 2)
                             val itemKey = "${wordfinder_path_ids[0]}-$index"
@@ -285,11 +288,12 @@ class MainActivity : ComponentActivity() {
                     for (i in 0 until (MenuFinder(wordfinder_path_ids[0]).item_list.size)) {
                         if (MenuFinder(wordfinder_path_ids[0]).item_list[i] == lookupName && MenuFinder(
                                 wordfinder_path_ids[0]
-                        ).item_type[i]
-                            ) {
+                            ).item_type[i]
+                        ) {
                             index = i
                         }
                     }
+                    wordfinder_highlight_index.intValue = index
                     if (MenuFinder(wordfinder_path_ids[0]).item_type[index]) {
                         var total_box_size = box_size + (box_padding * 2)
                         val itemKey = "${wordfinder_path_ids[0]}-$index"
@@ -626,6 +630,7 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                     }
                     if (!wordfinder_path_ids.isEmpty()) {
                         if (wordfinder_path_ids.size <= 1) {
+                            wordfinder_highlight_index.intValue = -1
                             wordfinder_path_ids.removeAt(0)
                             wordfinder_path_ids.clear()
                             wordfinder_path_names.clear()
@@ -642,6 +647,7 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
             mod = Modifier.zIndex(1000f)
         }
         Text(text = name, color = Color.Black, modifier = mod
+            .offset(x_offset, y_offset)
             .padding(item_text_padding)
             .height(height_dp.dp)
             .width(width_dp.dp)
@@ -697,6 +703,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                         switchmenuparser.value += 1
                     }
                     if (wordfinder_path_ids.size >= 1 && !wordfinder_target_is_symbol) {
+                        wordfinder_highlight_index.intValue = -1
                         wordfinder_path_ids.removeAt(0)
                         wordfinder_path_ids.clear()
                         wordfinder_path_names.clear()
@@ -717,6 +724,7 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
             text = name,
             color = Color.Black,
             modifier = mod
+                .offset(x_offset, y_offset)
                 .padding(item_text_padding)
                 .height(height_dp.dp)
                 .width(width_dp.dp)
@@ -797,21 +805,33 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
 
             val pagerState = rememberPagerState(pageCount = { page_count })
 
+            LaunchedEffect(wordfinder_highlight_index.intValue, items_per_page, page_count) {
+                val idx = wordfinder_highlight_index.intValue
+                if (idx >= 0)
+                {
+                    val target_page = (idx / items_per_page).coerceIn(0, page_count - 1)
+                    if (pagerState.currentPage != target_page)
+                    {
+                        pagerState.animateScrollToPage(target_page)
+                    }
+                }
+            }
+
             HorizontalPager(state = pagerState,
-            modifier = modifier.fillMaxWidth().fillMaxHeight()
+                modifier = modifier.fillMaxWidth().fillMaxHeight()
             ) { page ->
                 val startIndex = page * items_per_page
                 val endIndex = minOf(startIndex + items_per_page, total_items)
 
                 FlowRow(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     for (i in startIndex until endIndex) {
                         if (i >= item_names.size || i >= item_urls.size) break
                         val itemKey = "${menutemplate.id}-$i"
                         Box(modifier = Modifier.onGloballyPositioned { coords ->
-                        item_positions[itemKey] = coords.positionInRoot()
+                            item_positions[itemKey] = coords.positionInRoot()
                         }) {
                             if (menutemplate.item_type[i]) {
                                 Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
@@ -866,16 +886,16 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                         {
                             Box(
                                 modifier = Modifier
-                            .background(Color.White)
-                            .border(
-                                width = 4.dp,
-                                color = Color.Black,
-                                shape = RoundedCornerShape(40.dp)
-                            )
-                            .padding(box_padding)
-                            .scale(1f)
-                            .height(box_size + vertical_stretch + box_padding)
-                            .width(box_size)
+                                    .background(Color.White)
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.Black,
+                                        shape = RoundedCornerShape(40.dp)
+                                    )
+                                    .padding(box_padding)
+                                    .scale(1f)
+                                    .height(box_size + vertical_stretch + box_padding)
+                                    .width(box_size)
                             )
                         }
                     }
@@ -931,7 +951,6 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms_ids: MutableList<Int>) {
         .fillMaxWidth()
         .fillMaxHeight()) {
         Box(
-            // FIX Y OFFSET
             modifier = modifier
                 .offset((x_offset + (width * i)), y_offset)
                 .width(width)
@@ -1176,18 +1195,19 @@ fun wordfinder_manager() {
 
 @Composable
 fun ButtonGuide_Wordfinder() {
-        Row(
-            modifier = Modifier
-                .zIndex(2f)
-                .fillMaxSize()
-                .background(Color.Gray.copy(alpha = 0.5f))
-                .clickable {
-                    wordfinder_path_ids.clear()
-                    wordfinder_display_buttonguide.intValue = 0
-                    createclonefolder.value = false
-                },
-        )
-        {}
+    Row(
+        modifier = Modifier
+            .zIndex(2f)
+            .fillMaxSize()
+            .background(Color.Gray.copy(alpha = 0.5f))
+            .clickable {
+                wordfinder_highlight_index.intValue = -1
+                wordfinder_path_ids.clear()
+                wordfinder_display_buttonguide.intValue = 0
+                createclonefolder.value = false
+            },
+    )
+    {}
 }
 
 
@@ -1297,7 +1317,7 @@ fun Buttonboxes() {
     Column() {
         Box(
             modifier = Modifier
-                .offset(x_offset - button_boxes_width, y_offset + button_boxes_width*2)
+                .offset(x_offset - button_boxes_width, y_offset + button_boxes_width*3)
                 .width(button_boxes_width*2)
                 .height(button_boxes_width)
                 .background(color = Color.White)
