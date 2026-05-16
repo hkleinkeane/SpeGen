@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -235,8 +236,18 @@ var input_box_height = 0.dp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences("spegen_prefs", MODE_PRIVATE)
+        val hasSeenTutorial = prefs.getBoolean("has_seen_tutorial", false)
+        val show_tutorial = mutableStateOf(false)
         super.onCreate(savedInstanceState)
-        setContent { MenuKeyGen()
+        setContent {
+            LaunchedEffect(Unit)
+            {
+                if (!hasSeenTutorial) {
+                    show_tutorial.value = true
+                }
+            }
+            MenuKeyGen()
             Screen()
             Box()
             {
@@ -267,7 +278,8 @@ class MainActivity : ComponentActivity() {
                             val captured = item_positions[itemKey]
                             val density = LocalDensity.current
                             val x_offset = captured?.let { with(density) { it.x.toDp() } } ?: 0.dp
-                            val y_offset = captured?.let { with(density) { it.y.toDp() } } ?: (button_boxes_width * 2)
+                            val y_offset = captured?.let { with(density) { it.y.toDp() } }
+                                ?: (button_boxes_width * 2)
                             val menu = MenuFinder(wordfinder_path_ids[0])
                             val folder_name = menu.item_list[index]
                             var folder_image_url by remember { mutableStateOf("") }
@@ -313,7 +325,8 @@ class MainActivity : ComponentActivity() {
                         val captured = item_positions[itemKey]
                         val density = LocalDensity.current
                         val x_offset = captured?.let { with(density) { it.x.toDp() } } ?: 0.dp
-                        val y_offset = captured?.let { with(density) { it.y.toDp() } } ?: (button_boxes_width * 2)
+                        val y_offset = captured?.let { with(density) { it.y.toDp() } }
+                            ?: (button_boxes_width * 2)
                         val menu = MenuFinder(wordfinder_path_ids[0])
                         val symbol_name = menu.item_list[index]
                         var symbol_image_url by remember { mutableStateOf("") }
@@ -337,6 +350,13 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
+            if (show_tutorial.value)
+            {
+                TutorialOverlay(onFinish = {
+                    prefs.edit().putBoolean("has_seen_tutorial", true).apply()
+                    show_tutorial.value = false
+                })
             }
         }
     }
@@ -479,6 +499,58 @@ suspend fun useApiWithToken(token: String?, search: String): ApiSymbolResponse? 
     }
 }
 
+@Composable
+fun TutorialOverlay(onFinish: () -> Unit) {
+    val slides = listOf(
+    "Welcome to SpeGen" to "Tap symbols to build sentences.",
+    "Categories" to "Tap a folder like People or Actions to find more words.",
+    "Search" to "Tap the Search button on the right to find any word quickly.",
+    "Speak" to "Tap the input bar at the top to read your sentence aloud."
+    )
+    var currentSlide by remember { mutableIntStateOf(0) }
+
+    Box(
+    modifier = Modifier
+        .fillMaxSize()
+        .background(Color.Black.copy(alpha = 0.85f))
+        .zIndex(2000f),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(40.dp)
+            ) {
+            Text(
+                text = slides[currentSlide].first,
+                color = Color.White,
+                fontSize = 32.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 20.dp)
+            )
+            Text(
+                text = slides[currentSlide].second,
+                color = Color.White,
+                fontSize = 18.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(bottom = 40.dp)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (currentSlide > 0) {
+                    Button(onClick = { currentSlide -= 1 }) { Text("Back") }
+                }
+            Button(onClick = {
+                if (currentSlide < slides.size - 1) currentSlide += 1
+                else onFinish()
+            }) {
+                Text(if (currentSlide < slides.size - 1) "Next" else "Done")
+            }
+                if (currentSlide < slides.size - 1) {
+                    Button(onClick = onFinish) { Text("Skip") }
+                }
+            }
+        }
+    }
+}
 
 
 // Function that creates the static row of always accessible words at the bottom of the screen for easy access with for loop that allows for customization through variables
@@ -607,7 +679,7 @@ fun InputBox_Text(index: Int) {
             it.titlecase()
         else it.toString()
     }
-    Box(modifier = Modifier.fillMaxHeight().aspectRatio(1f), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.fillMaxHeight().aspectRatio(1f), contentAlignment = Alignment.CenterStart) {
         Text(
             text = name,
             color = Color.Black,
