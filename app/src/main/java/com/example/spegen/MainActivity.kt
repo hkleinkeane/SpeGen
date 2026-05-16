@@ -863,19 +863,28 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                 }
             }
 
-            HorizontalPager(state = pagerState,
-                modifier = modifier.fillMaxWidth().fillMaxHeight()
-            ) { page ->
+            HorizontalPager(state = pagerState, modifier = modifier.fillMaxWidth().fillMaxHeight()) { page ->
                 val startIndex = page * items_per_page
                 val endIndex = minOf(startIndex + items_per_page, total_items)
-                var items_per_page_displayed = 0
+                val empty_slots = items_per_page - (endIndex - startIndex)
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     for (i in startIndex until endIndex) {
-                        if (i >= item_names.size || i >= item_urls.size) break
+                        if (i >= item_names.size || i >= item_urls.size) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.White)
+                                    .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                                    .padding(box_padding)
+                                    .scale(1f)
+                                    .height(box_size + vertical_stretch + (box_padding * 3))
+                                    .width(box_size)
+                            )
+                            continue
+                        }
                         val itemKey = "${menutemplate.id}-$i"
                         Box(modifier = Modifier.onGloballyPositioned { coords ->
                             item_positions[itemKey] = coords.positionInRoot()
@@ -885,27 +894,18 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                             } else {
                                 Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
                             }
-                            items_per_page_displayed += 1
                         }
                     }
-                    if (items_per_page_displayed < items_per_page)
-                    {
-                        for (i in 0 until items_per_page-items_per_page_displayed)
-                        {
-                            Box(
-                                modifier = Modifier
-                                    .background(Color.White)
-                                    .border(
-                                        width = 4.dp,
-                                        color = Color.Black,
-                                        shape = RoundedCornerShape(40.dp)
-                                    )
-                                    .padding(box_padding)
-                                    .scale(1f)
-                                    .height(box_size + vertical_stretch + box_padding)
-                                    .width(box_size)
-                            )
-                        }
+                    for (i in 0 until empty_slots) {
+                        Box(
+                            modifier = Modifier
+                                .background(Color.White)
+                                .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                                .padding(box_padding)
+                                .scale(1f)
+                                .height(box_size + vertical_stretch + (box_padding * 3))
+                                .width(box_size)
+                        )
                     }
                 }
             }
@@ -922,49 +922,49 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
             val page_count = ((total_items + items_per_page - 1) / items_per_page).coerceAtLeast(1)
 
             val pagerState = rememberPagerState(pageCount = { page_count })
-            HorizontalPager(state = pagerState,
-                modifier = modifier.fillMaxWidth().fillMaxHeight()
-            ) { page ->
+            HorizontalPager(state = pagerState, modifier = modifier.fillMaxWidth().fillMaxHeight()) { page ->
                 val startIndex = page * items_per_page
                 val endIndex = minOf(startIndex + items_per_page, total_items)
-                var items_per_page_displayed = 0
+                val empty_slots = items_per_page - (endIndex - startIndex)
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    for (i in startIndex until endIndex) {
-                        if (i >= item_names.size || i >= item_urls.size) break
-                        val itemKey = "${menutemplate.id}-$i"
-                        Box(modifier = Modifier.onGloballyPositioned { coords ->
-                            item_positions[itemKey] = coords.positionInRoot()
-                        }) {
-                            if (menutemplate.item_type[i]) {
-                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
-                            } else {
-                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
-                            }
-                            items_per_page_displayed += 1
+                for (i in startIndex until endIndex) {
+                    if (i >= item_names.size || i >= item_urls.size) {
+                        Box(
+                            modifier = Modifier
+                                .background(Color.White)
+                        .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                        .padding(box_padding)
+                        .scale(1f)
+                        .height(box_size + vertical_stretch + (box_padding * 3))
+                        .width(box_size)
+                        )
+                        continue
+                    }
+                    val itemKey = "${menutemplate.id}-$i"
+                    Box(modifier = Modifier.onGloballyPositioned { coords ->
+                        item_positions[itemKey] = coords.positionInRoot()
+                    }) {
+                        if (menutemplate.item_type[i]) {
+                            Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
+                        } else {
+                            Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
                         }
                     }
-                    if (items_per_page_displayed < items_per_page)
-                    {
-                        for (i in 0 until items_per_page-items_per_page_displayed)
-                        {
-                            Box(
-                                modifier = Modifier
-                                    .background(Color.White)
-                                    .border(
-                                        width = 4.dp,
-                                        color = Color.Black,
-                                        shape = RoundedCornerShape(40.dp)
-                                    )
-                                    .padding(box_padding)
-                                    .scale(1f)
-                                    .height(box_size + vertical_stretch + box_padding)
-                                    .width(box_size)
-                            )
-                        }
+                }
+                    for (i in 0 until empty_slots) {
+                        Box(
+                            modifier = Modifier
+                        .background(Color.White)
+                        .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                        .padding(box_padding)
+                        .scale(1f)
+                        .height(box_size + vertical_stretch + (box_padding * 3))
+                        .width(box_size)
+                        )
                     }
                 }
             }
@@ -1417,7 +1417,7 @@ fun Buttonboxes() {
 
         AlertDialog(
             onDismissRequest = { showKeyboard = false },
-            title = { Text("Add a word") },
+            title = { Text("Add text") },
             text = {
                 TextField(
                     value = typedText,
