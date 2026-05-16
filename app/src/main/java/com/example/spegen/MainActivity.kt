@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -228,6 +229,7 @@ var current_menu_id = 0
 
 val wordfinder_highlight_index = mutableIntStateOf(-1)
 
+var input_box_height = 0.dp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -523,11 +525,13 @@ fun InputBox(modifier: Modifier) {
         getAccessToken()
     }
 
+    var input_box_height = screenHeight * (1f / 4f)
+
     Row {
         LazyRow(
             modifier = modifier
                 .width(screenWidth - (button_boxes_width * 2))
-                .height(screenHeight * (1f / 4f))
+                .height(input_box_height)
                 .background(Color.White)
                 .border(4.dp, Color.Black)
                 .clickable {
@@ -577,7 +581,8 @@ fun InputBox_Symbol(index: Int) {
                 .background(Color.White)
                 .padding(box_padding)
                 .scale(1f)
-                .size(box_size)
+                .fillMaxHeight()
+                .aspectRatio(1f)
         )
         Text(
             text = name,
@@ -600,7 +605,7 @@ fun InputBox_Text(index: Int) {
             it.titlecase()
         else it.toString()
     }
-    Box {
+    Box(modifier = Modifier.fillMaxHeight().aspectRatio(1f), contentAlignment = Alignment.Center) {
         Text(
             text = name,
             color = Color.Black,
@@ -608,7 +613,7 @@ fun InputBox_Text(index: Int) {
                 .background(Color.White)
                 .padding(box_padding)
                 .scale(1f)
-                .size(box_size),
+                .fillMaxSize(),
             autoSize = TextAutoSize.StepBased()
         )
     }
