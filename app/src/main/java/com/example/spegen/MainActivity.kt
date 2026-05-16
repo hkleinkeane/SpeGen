@@ -138,6 +138,8 @@ val paddingDividend = 50
 
 var static_row_height = 0.dp
 
+var menu_static_row_height = 0.dp
+
 var button_boxes_width = 0.dp
 
 val home = menutemplate(
@@ -186,7 +188,7 @@ var box_size = 100.dp
 
 var box_padding = 20.dp
 
-var menu_height = (screenHeight - static_row_height - static_row_height - static_row_height - static_row_height)
+var menu_height = 0.dp
 
 var menu_width = screenWidth - (button_boxes_width * 2)
 
@@ -525,7 +527,7 @@ fun InputBox(modifier: Modifier) {
         getAccessToken()
     }
 
-    var input_box_height = screenHeight * (1f / 4f)
+    input_box_height = screenHeight * (1f / 4f)
 
     Row {
         LazyRow(
@@ -812,7 +814,7 @@ fun MenuKeyGen() {
 @Composable
 @NonSkippableComposable
 fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
-    var totalitems = ((screenWidth - (button_boxes_width * 2))/(box_size + (box_padding*2)))*((screenHeight-(static_row_height*2))/box_size)
+    var totalitems = ((screenWidth - (button_boxes_width * 2))/(box_size + (box_padding*2)))*((screenHeight-(static_row_height+menu_static_row_height))/box_size)
     var total_box_size = box_size+(box_padding*2)
     val vertical_stretch = ((menu_height)-((((menu_height)/(total_box_size)).toInt())*total_box_size))
     var item_names = remember { mutableStateListOf<String>() }
@@ -972,7 +974,7 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
 
 @Composable
 fun Menu(modifier: Modifier) {
-    menu_height = (screenHeight - static_row_height - static_row_height - static_row_height - static_row_height)
+    menu_height = (screenHeight - menu_static_row_height - static_row_height - input_box_height)
     menu_width = screenWidth - (button_boxes_width * 2)
     Column(
         modifier = Modifier.alpha(1f)
@@ -981,7 +983,7 @@ fun Menu(modifier: Modifier) {
             modifier = modifier
                 .width(menu_width)
                 .height(menu_height)
-                .offset(x = 0.dp, y = (static_row_height * 2))
+                .offset(x = 0.dp, y = input_box_height)
         ) {
             MenuParser(MenuFinder(linked_menu.value))
         }
@@ -1006,10 +1008,10 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms_ids: MutableList<Int>) {
     var border_color = Color.Black // Set as var to be able to be customized by user later
     var width =
         (screenWidth / menu_terms_ids.size) // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
-    static_row_height =
+    menu_static_row_height =
         screenHeight * (1f / 8f) // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
     var y_offset =
-        (screenHeight - static_row_height - static_row_height) // Determines Y offset by subtracting height from the total screen width
+        (screenHeight - menu_static_row_height - static_row_height) // Determines Y offset by subtracting height from the total screen width
     var x_offset =
         (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
     Column(modifier = Modifier
@@ -1019,7 +1021,7 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms_ids: MutableList<Int>) {
             modifier = modifier
                 .offset((x_offset + (width * i)), y_offset)
                 .width(width)
-                .height(static_row_height)
+                .height(menu_static_row_height)
                 .background(color = box_color)
                 .border(border = BorderStroke(border_size, border_color))
                 .clickable(onClick = {
@@ -1034,10 +1036,6 @@ fun Menurowbox(modifier: Modifier, i: Int, menu_terms_ids: MutableList<Int>) {
             )
         }
     }
-    modifier_picker = Modifier
-        .width(screenWidth - (button_boxes_width * 2))
-        .height(screenHeight - (static_row_height * 4))
-        .offset(0.dp, button_boxes_width * 2)
 }
 
 
