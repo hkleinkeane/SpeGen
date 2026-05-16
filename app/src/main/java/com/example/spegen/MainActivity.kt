@@ -10,7 +10,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +35,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -68,6 +69,12 @@ import kotlinx.serialization.json.JsonIgnoreUnknownKeys
 import java.util.Locale
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.TextAutoSize
 
 
 // Text box text variable
@@ -182,7 +189,9 @@ var menu_height = (screenHeight - static_row_height - static_row_height - static
 
 var menu_width = screenWidth - (button_boxes_width * 2)
 
-var selected_symbols = mutableStateListOf<String>()
+var inputboxselecteditems_text = mutableStateListOf<String>()
+
+var inputboxselecteditems_has_symbol = mutableStateListOf<Boolean>()
 
 var tts: MutableState<TextToSpeech?> = mutableStateOf(null)
 
@@ -522,26 +531,31 @@ fun InputBox(modifier: Modifier) {
                 .background(Color.White)
                 .border(4.dp, Color.Black)
                 .clickable {
-                    val speech = selected_symbols.joinToString(" ")
+                    val speech = inputboxselecteditems_text.joinToString(" ")
                     tts.value?.speak(speech, TextToSpeech.QUEUE_FLUSH, null, "")
                 }
         ) {
-            // This condition ensures nothing is shown until the loop finishes
-            items(selected_symbols.size) { index ->
-                InputBox_Symbol(index)
+            if (inputboxselecteditems_text.size == inputboxselecteditems_has_symbol.size) {
+                items(inputboxselecteditems_text.size) { index ->
+                    if (inputboxselecteditems_has_symbol[index]) {
+                        InputBox_Symbol(index)
+                    }
+                    else
+                    {
+                        InputBox_Text(index)
+                    }
+                }
             }
-
         }
     }
 }
 
 @Composable
 fun InputBox_Symbol(index: Int) {
-
     var name by remember {mutableStateOf("")}
     var url by remember {mutableStateOf("")}
-    LaunchedEffect(selected_symbols) {
-        val res = useApiWithToken(accesstoken, selected_symbols[index])
+    LaunchedEffect(inputboxselecteditems_text) {
+        val res = useApiWithToken(accesstoken, inputboxselecteditems_text[index])
         name = res?.name ?: ""
         url = res?.image_url ?: ""
     }
@@ -574,6 +588,29 @@ fun InputBox_Symbol(index: Int) {
                 .width(width_dp.dp)
                 .align(Alignment.BottomCenter),
             textAlign = TextAlign.Center)
+    }
+}
+
+
+@Composable
+fun InputBox_Text(index: Int) {
+    var name by remember {mutableStateOf(inputboxselecteditems_text[index])}
+    name = name.replaceFirstChar {
+        if (it.isLowerCase())
+            it.titlecase()
+        else it.toString()
+    }
+    Box {
+        Text(
+            text = name,
+            color = Color.Black,
+            modifier = Modifier
+                .background(Color.White)
+                .padding(box_padding)
+                .scale(1f)
+                .size(box_size),
+            autoSize = TextAutoSize.StepBased()
+        )
     }
 }
 
@@ -618,7 +655,8 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                         )
                     }
                     if (tts_type == 1) {
-                        selected_symbols += name
+                        inputboxselecteditems_text += name
+                        inputboxselecteditems_has_symbol += true
                     }
                     if (tts_type == 2) {
                         if (tts.value?.isSpeaking == true) {
@@ -626,7 +664,8 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                         } else tts.value?.speak(
                             (name), TextToSpeech.QUEUE_FLUSH, null, ""
                         )
-                        selected_symbols += name
+                        inputboxselecteditems_text += name
+                        inputboxselecteditems_has_symbol += true
                     }
                     if (!wordfinder_path_ids.isEmpty()) {
                         if (wordfinder_path_ids.size <= 1) {
@@ -822,6 +861,7 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
             ) { page ->
                 val startIndex = page * items_per_page
                 val endIndex = minOf(startIndex + items_per_page, total_items)
+                var items_per_page_displayed = 0
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
@@ -838,6 +878,26 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                             } else {
                                 Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
                             }
+                            items_per_page_displayed += 1
+                        }
+                    }
+                    if (items_per_page_displayed < items_per_page)
+                    {
+                        for (i in 0 until items_per_page-items_per_page_displayed)
+                        {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.White)
+                                    .border(
+                                        width = 4.dp,
+                                        color = Color.Black,
+                                        shape = RoundedCornerShape(40.dp)
+                                    )
+                                    .padding(box_padding)
+                                    .scale(1f)
+                                    .height(box_size + vertical_stretch + box_padding)
+                                    .width(box_size)
+                            )
                         }
                     }
                 }
@@ -1218,8 +1278,7 @@ fun Buttonboxes() {
     button_boxes_width = (screenHeight.value*(1f/8f)).dp
     val x_offset = ((screenWidth - button_boxes_width).value).dp
     val y_offset = 0.dp
-    var switchmenu by remember { mutableStateOf(false) }
-    var switchmenu1 by remember { mutableStateOf(false) }
+    var showKeyboard by remember { mutableStateOf(false)}
     if (wordfinder_display.value == a.value) {
         //TOP RIGHT
         Column() {
@@ -1261,6 +1320,7 @@ fun Buttonboxes() {
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
                     .clickable(onClick = {
+                        showKeyboard = true
                     })
             ) {
                 Text(text = "Keyboard", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
@@ -1274,7 +1334,8 @@ fun Buttonboxes() {
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
                     .clickable(onClick = {
-                        selected_symbols.clear()
+                        inputboxselecteditems_text.clear()
+                        inputboxselecteditems_has_symbol.clear()
                     })
             ) {
                 Text(text = "Clear", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
@@ -1290,8 +1351,9 @@ fun Buttonboxes() {
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
                     .clickable(onClick = {
-                        if (selected_symbols.size >= 1) {
-                            selected_symbols.removeAt(selected_symbols.lastIndex)
+                        if (inputboxselecteditems_text.isNotEmpty() && inputboxselecteditems_has_symbol.isNotEmpty()) {
+                            inputboxselecteditems_text.removeAt(inputboxselecteditems_text.lastIndex)
+                            inputboxselecteditems_has_symbol.removeAt(inputboxselecteditems_has_symbol.lastIndex)
                         }
                     })
             ) {
@@ -1331,6 +1393,39 @@ fun Buttonboxes() {
         ) {
             Text(text = "Back", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
         }
+    }
+    if (showKeyboard)
+    {
+        var typedText by remember { mutableStateOf("") }
+        val focusRequester = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+
+        fun submit() {
+            val trimmed = typedText.trim()
+            if (trimmed.isNotEmpty()) {
+                inputboxselecteditems_text += trimmed
+                inputboxselecteditems_has_symbol += false
+            }
+            showKeyboard = false
+        }
+
+        AlertDialog(
+            onDismissRequest = { showKeyboard = false },
+            title = { Text("Add a word") },
+            text = {
+                TextField(
+                    value = typedText,
+                    onValueChange = { typedText = it },
+                    singleLine = true,
+                    modifier = Modifier.focusRequester(focusRequester),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                  )
+            },
+            confirmButton = { Button(onClick = { submit() }) { Text("Add") } },
+            dismissButton = { Button(onClick = { showKeyboard = false }) { Text("Cancel") } }
+        )
     }
 }
 
