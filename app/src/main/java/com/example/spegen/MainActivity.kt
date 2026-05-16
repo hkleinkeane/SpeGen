@@ -481,7 +481,7 @@ suspend fun useApiWithToken(token: String?, search: String): ApiSymbolResponse? 
 @Composable
 fun Static_Row_Needs() {
     tts = rememberTextToSpeech()
-    val static_terms: MutableList<String> = mutableListOf("Yes", "No", "Food", "Water", "I need my parent", "I use a talker to communicate")
+    val static_terms: MutableList<String> = mutableListOf("Yes", "No", "Thank you", "I need help", "Excuse me", "I use a talker to communicate")
     var text_color = Color.Black // Set as var to be able to be customized by user later
     var text_alignment = Alignment.Center // Set as var to be able to be customized by user later
     var box_color = Color.White // Set as var to be able to be customized by user later
@@ -1234,9 +1234,10 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
                 if (wordfinder_path_names.lastOrNull() != targetName) {
                     wordfinder_path_names.add(targetName)
                 }
+                linked_menu.value = wordfinder_path_ids.firstOrNull() ?: 1
                 wordfinder_display_buttonguide.intValue += 1
                 wordfinder_display.intValue = 0
-                switchmenuparser.value += 1
+                switchmenuparser.value++
                 wordfinder_manager()
             }
         }
