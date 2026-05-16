@@ -77,6 +77,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.core.content.edit
 
 
 // Text box text variable
@@ -354,13 +355,15 @@ class MainActivity : ComponentActivity() {
             if (show_tutorial.value)
             {
                 TutorialOverlay(onFinish = {
-                    prefs.edit().putBoolean("has_seen_tutorial", true).apply()
+                    prefs.edit { putBoolean("has_seen_tutorial", true) }
                     show_tutorial.value = false
                 })
             }
         }
     }
 }
+
+
 
 @Composable
 fun GetScreenDimensions() {
@@ -589,6 +592,37 @@ fun Static_Row_Needs() {
                 Text(text = static_terms[i], color = text_color, modifier = Modifier.align(text_alignment))
             }
         }
+}
+
+fun scale_box_size(
+    available_width: Dp,
+    original_box_size: Dp,
+    box_padding: Dp,
+    margin: Dp = 30.dp // how much shrinkage is allowed
+    ): Pair<Dp, Int>
+    {
+    val item_padding = box_padding * 2
+    val min_size = (original_box_size - margin).coerceAtLeast(20.dp)
+    val max_size = original_box_size
+
+    // smallest item size = most items per row
+    val max_items_per_row = (available_width.value / (min_size.value + item_padding.value))
+    .toInt().coerceAtLeast(1)
+
+    // largest count of items that still fits if original_box_size is used
+    val items_at_original = (available_width.value / (max_size.value + item_padding.value))
+    .toInt().coerceAtLeast(1)
+
+    // pick the bigger of the two (most items in a row)
+    val target_items = max_items_per_row
+
+    // exact size to make a perfect fit
+    val total_padding = target_items * item_padding.value
+    val exact_size = ((available_width.value - total_padding) / target_items).coerceIn(
+    min_size.value, max_size.value
+    )
+
+    return Pair(exact_size.dp, target_items)
 }
 
 @Composable
@@ -1522,6 +1556,7 @@ fun Screen() {
             Buttonboxes()
             MenuRow(Modifier)
             InputBox(Modifier)
+            box_size = scale_box_size(menu_width-(button_boxes_width*2), box_size, box_padding, 30.dp).first
             Menu(Modifier)
         }
     }
