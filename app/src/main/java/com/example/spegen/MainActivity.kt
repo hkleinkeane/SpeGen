@@ -991,11 +991,11 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                         if (i >= item_names.size || i >= item_urls.size) {
                             Box(
                                 modifier = Modifier
+                                    .height(box_size + vertical_stretch + (box_padding * 3))
                                     .background(Color.White)
                                     .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                                     .padding(box_padding)
                                     .scale(1f)
-                                    .height(box_size + vertical_stretch + (box_padding * 3))
                                     .width(box_size)
                             )
                             continue
@@ -1014,11 +1014,11 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                     for (i in 0 until empty_slots) {
                         Box(
                             modifier = Modifier
+                                .height(box_size + vertical_stretch + (box_padding * 3))
                                 .background(Color.White)
                                 .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
                                 .padding(box_padding)
                                 .scale(1f)
-                                .height(box_size + vertical_stretch + (box_padding * 3))
                                 .width(box_size)
                         )
                     }
@@ -1044,18 +1044,19 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
 
                 FlowRow(
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalArrangement = Arrangement.SpaceEvenly
                 ) {
                 for (i in startIndex until endIndex) {
                     if (i >= item_names.size || i >= item_urls.size) {
                         Box(
                             modifier = Modifier
+                                .height(box_size + vertical_stretch + (box_padding * 3))
                                 .background(Color.White)
-                        .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
-                        .padding(box_padding)
-                        .scale(1f)
-                        .height(box_size + vertical_stretch + (box_padding * 3))
-                        .width(box_size)
+                                .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                                .padding(box_padding)
+                                .scale(1f)
+                                .width(box_size)
                         )
                         continue
                     }
@@ -1073,12 +1074,12 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                     for (i in 0 until empty_slots) {
                         Box(
                             modifier = Modifier
-                        .background(Color.White)
-                        .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
-                        .padding(box_padding)
-                        .scale(1f)
-                        .height(box_size + vertical_stretch + (box_padding * 3))
-                        .width(box_size)
+                                .height(box_size + vertical_stretch + (box_padding * 3))
+                                .background(Color.White)
+                                .border(width = 4.dp, color = Color.Black, shape = RoundedCornerShape(40.dp))
+                                .padding(box_padding)
+                                .scale(1f)
+                                .width(box_size)
                         )
                     }
                 }
