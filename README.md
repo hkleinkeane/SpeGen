@@ -91,7 +91,7 @@ Don't forget to give the project a star! Thanks again!
 
 Email - harperkleinkeane@gmail.com
 
-Project Link: [https://github.com/Madirish2601/SpeGen](https://github.com/Madirish2601/SpeGen)
+Project Link: [https://github.com/Madirish2601/SpeGen](https://github.com/Madirish2601/SpeGen) and [https://hkleinkeane.github.io/spegen/](https://hkleinkeane.github.io/spegen/)
 
 
 <!-- ACKNOWLEDGMENTS -->
