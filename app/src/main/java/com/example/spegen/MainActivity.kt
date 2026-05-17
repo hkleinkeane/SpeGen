@@ -79,6 +79,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.core.content.edit
 import android.content.Context
+import androidx.compose.ui.text.font.FontWeight
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -90,6 +91,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import kotlin.collections.List
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 val Context.spegen_datastore by preferencesDataStore(name = "spegen_settings")
 private val APP_STATE_KEY = stringPreferencesKey("app_state")
@@ -205,6 +208,8 @@ val wordfinder_highlight_index = mutableIntStateOf(-1)
 var input_box_height = 0.dp
 
 var static_terms = mutableStateListOf<String>("Yes", "No", "Thank you", "I need help", "Excuse me", "I use a talker to communicate")
+
+val show_settings = mutableStateOf(false)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -332,6 +337,9 @@ class MainActivity : ComponentActivity() {
                     prefs.edit { putBoolean("has_seen_tutorial", true) }
                     show_tutorial.value = false
                 })
+            }
+            if (show_settings.value) {
+                SettingsScreen(onClose = { show_settings.value = false })
             }
         }
     }
@@ -1390,6 +1398,221 @@ fun ButtonGuide_Wordfinder() {
     {}
 }
 
+@Composable
+fun SettingsScreen(onClose: () -> Unit) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabs = listOf("UI", "Voice", "About")
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f))
+            .zIndex(1500f)
+            .clickable(enabled = false, onClick = {}),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .fillMaxHeight(0.9f)
+        ) {
+            // TAB STRIP
+            Row(modifier = Modifier.fillMaxWidth().height(48.dp)) {
+                tabs.forEachIndexed { index, label ->
+                    val isSelected = selectedTab == index
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .padding(end = 2.dp)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
+                            .background(if (isSelected) Color.White else Color(0xFFB0B0B0))
+                            .border(
+                                width = if (isSelected) 2.dp else 1.dp,
+                                color = Color.Black,
+                                shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                            )
+                            .clickable { selectedTab = index },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) Color.Black else Color(0xFF404040),
+                            fontSize = 18.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
+            // CONTENT PANEL
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.White)
+                    .border(2.dp, Color.Black)
+                    .padding(16.dp)
+            ) {
+                when (selectedTab) {
+                    0 -> UISettingsContent()
+                    1 -> VoiceSettingsContent()
+                    2 -> AboutContent()
+                }
+            }
+
+            // DONE BUTTON
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Button(onClick = onClose) { Text("Done") }
+            }
+        }
+    }
+}
+
+@Composable
+fun ExpandableSection(title: String, content: @Composable () -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (expanded) Color(0xFFD0D0D0) else Color(0xFFE8E8E8))
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 12.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (expanded) "▼" else "▶",
+                modifier = Modifier.padding(end = 12.dp),
+                fontSize = 14.sp
+            )
+            Text(
+                text = title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Black
+            )
+        }
+        if (expanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 24.dp, top = 8.dp, end = 8.dp, bottom = 12.dp)
+            ) {
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+fun UISettingsContent() {
+    Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        ExpandableSection("Static Symbol Row") { StaticSymbolRowSettings() }
+        ExpandableSection("Menu Row") { MenuRowSettings() }
+        ExpandableSection("Symbol Sizing") { SymbolSizingSettings() }
+    }
+}
+
+@Composable
+fun StaticSymbolRowSettings() {
+    Column {
+        Text("Words always visible at the bottom of the screen.", fontSize = 14.sp, color = Color.DarkGray)
+        Spacer(modifier = Modifier.height(8.dp))
+        static_terms.forEachIndexed { index, term ->
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = term, modifier = Modifier.weight(1f), fontSize = 16.sp)
+                Button(
+                    onClick = { static_terms.removeAt(index) },
+                    modifier = Modifier.padding(start = 8.dp)
+                ) { Text("Remove") }
+            }
+        }
+        var newTerm by remember { mutableStateOf("") }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TextField(
+                value = newTerm,
+                onValueChange = { newTerm = it },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                label = { Text("New term") }
+            )
+            Button(
+                onClick = {
+                    val trimmed = newTerm.trim()
+                    if (trimmed.isNotEmpty()) {
+                        static_terms.add(trimmed)
+                        newTerm = ""
+                    }
+                },
+                modifier = Modifier.padding(start = 8.dp)
+            ) { Text("Add") }
+        }
+    }
+}
+
+@Composable
+fun MenuRowSettings() {
+    Column {
+        Text("Choose which menus appear in the bottom menu row.", fontSize = 14.sp, color = Color.DarkGray)
+        Spacer(modifier = Modifier.height(8.dp))
+        MenuList.forEach { menu ->
+            if (menu.id != 1) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = menu.title, modifier = Modifier.weight(1f), fontSize = 16.sp)
+                    Text(text = "(visible)", color = Color.Gray, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SymbolSizingSettings() {
+    // Most likely will be changed to a slider approach with an example display. This is a debug display
+    Column {
+        Text("Symbol size: ${box_size.value.toInt()}dp", fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Row {
+            Button(onClick = {  }) {
+                Text("TODO")
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(onClick = {  }) {
+                Text("TODO")
+            }
+        }
+    }
+}
+
+@Composable
+fun VoiceSettingsContent() {
+    Text("Voice settings — TTS engine, speaking rate, pitch. (TODO)")
+}
+
+@Composable
+fun AboutContent() {
+    Column {
+        Text("SpeGen", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("An open-source AAC app developed by Harper Klein Keane. SpeGen's website can be found at the following URL: https://hkleinkeane.github.io/spegen/.", fontSize = 14.sp)
+        Text("License: Apache-2.0", fontSize = 14.sp, color = Color.Gray)
+    }
+}
+
 
 @Composable
 fun Buttonboxes() {
@@ -1409,6 +1632,7 @@ fun Buttonboxes() {
                     .background(color = Color.White)
                     .border(border = BorderStroke(2.dp, Color.Black))
                     .clickable(onClick = {
+                        show_settings.value = true
                     })
             ) {
                 Text(text = "Settings", color = Color.Black, modifier = Modifier.align(Alignment.Center).padding(3.dp))
