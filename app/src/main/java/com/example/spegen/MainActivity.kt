@@ -93,6 +93,11 @@ import kotlinx.serialization.decodeFromString
 import kotlin.collections.List
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.ButtonDefaults
 
 val Context.spegen_datastore by preferencesDataStore(name = "spegen_settings")
 private val APP_STATE_KEY = stringPreferencesKey("app_state")
@@ -117,6 +122,13 @@ var static_row_height = 0.dp
 var menu_static_row_height = 0.dp
 
 var button_boxes_width = 0.dp
+
+val editor_mode = mutableStateOf(false)
+val show_edit_item_dialog = mutableStateOf(false)
+val show_add_item_dialog = mutableStateOf(false)
+val show_new_menu_dialog = mutableStateOf(false)
+val edit_target_menu_id = mutableIntStateOf(-1)
+val edit_target_index = mutableIntStateOf(-1)
 
 val home = menutemplate(
     1, "Home", 1,
@@ -341,11 +353,15 @@ class MainActivity : ComponentActivity() {
             if (show_settings.value) {
                 SettingsScreen(onClose = { show_settings.value = false })
             }
+            if (editor_mode.value) {
+                if (show_edit_item_dialog.value) EditItemDialog()
+                if (show_add_item_dialog.value) AddItemDialog()
+                if (show_new_menu_dialog.value) NewMenuDialog()
+            }
         }
     }
     override fun onPause() {
         super.onPause()
-        // launch a fire-and-forget coroutine; DataStore handles transactional writes
         lifecycleScope.launch {
             saveAllPreferences(this@MainActivity)
         }
@@ -388,7 +404,6 @@ suspend fun saveAllPreferences(context: Context) {
 }
 
 suspend fun loadAllPreferences(context: Context) {
-    // static_row_height, menu_static_row_height, button_boxes_width
     val prefs = context.spegen_datastore.data.first()
     val json = prefs[APP_STATE_KEY] ?: return
     val state = try {
@@ -541,7 +556,7 @@ suspend fun useApiWithToken(token: String?, search: String): ApiSymbolResponse? 
                     // Clean up the string to ensure valid JSON for a single object
                     symbolstring = symbolstring.dropLast(symbolstring.count { it == '}' } - 1)
 
-                    // 3. Return the decoded object
+                    // Return the decoded object
                     Json.decodeFromString<ApiSymbolResponse>(symbolstring)
                 } else {
                     null // Return null if no valid symbol found
@@ -681,11 +696,10 @@ fun InputBox(modifier: Modifier) {
 
 @Composable
 fun InputBox_Symbol(index: Int) {
-    var name by remember {mutableStateOf("")}
+    var name = inputboxselecteditems_text[index]
     var url by remember {mutableStateOf("")}
     LaunchedEffect(inputboxselecteditems_text) {
-        val res = useApiWithToken(accesstoken, inputboxselecteditems_text[index])
-        name = res?.name ?: ""
+        val res = useApiWithToken(accesstoken, name)
         url = res?.image_url ?: ""
     }
 
@@ -746,7 +760,7 @@ fun InputBox_Text(index: Int) {
 
 @Composable
 @NonSkippableComposable
-fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier) {
+fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier, menu_id: Int? = null, item_index: Int? = null) {
     if (x_offset > 0.dp || y_offset > 0.dp) {
         Row(modifier = Modifier.fillMaxSize())
         {
@@ -777,6 +791,12 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
                 .scale(1f)
                 .width(box_size)
                 .clickable(onClick = {
+                    if (editor_mode.value && menu_id != null && item_index != null) {
+                        edit_target_menu_id.intValue = menu_id
+                        edit_target_index.intValue = item_index
+                        show_edit_item_dialog.value = true
+                        return@clickable
+                    }
                     if (tts_type == 0) {
                         if (tts.value?.isSpeaking == true) {
                             tts.value?.stop()
@@ -826,7 +846,7 @@ fun Symbol(Name: String, image_url: String, Vertical_Stretch: Dp, tts_type: Int,
 
 @Composable
 @NonSkippableComposable
-fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier) {
+fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: Dp, x_offset: Dp = 0.dp, y_offset: Dp = 0.dp, modifier: Modifier = Modifier, menu_id: Int? = null, item_index: Int? = null) {
     if (x_offset > 0.dp || y_offset > 0.dp) {
         Row(modifier = Modifier.fillMaxSize())
         {
@@ -857,6 +877,12 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
                 .scale(1f)
                 .width(box_size)
                 .clickable(onClick = {
+                    if (editor_mode.value && menu_id != null && item_index != null) {
+                        edit_target_menu_id.intValue = menu_id
+                        edit_target_index.intValue = item_index
+                        show_edit_item_dialog.value = true
+                        return@clickable
+                    }
                     if (!wordfinder_path_ids.isEmpty()) {
                         if (wordfinder_path_ids.size >= 2) {
                             if (LinkedMenu == wordfinder_path_ids[1]) {
@@ -1013,9 +1039,9 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                             item_positions[itemKey] = coords.positionInRoot()
                         }) {
                             if (menutemplate.item_type[i]) {
-                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i]!!)
+                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i]!!, menu_id = menutemplate.id, item_index = i)
                             } else {
-                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i]!!, vertical_stretch)
+                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i]!!, vertical_stretch, menu_id = menutemplate.id, item_index = i)
                             }
                         }
                     }
@@ -1401,7 +1427,7 @@ fun ButtonGuide_Wordfinder() {
 @Composable
 fun SettingsScreen(onClose: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("UI", "Voice", "About")
+    val tabs = listOf("UI", "Voice", "Backup", "About")
 
     Box(
         modifier = Modifier
@@ -1457,7 +1483,8 @@ fun SettingsScreen(onClose: () -> Unit) {
                 when (selectedTab) {
                     0 -> UISettingsContent()
                     1 -> VoiceSettingsContent()
-                    2 -> AboutContent()
+                    2 -> BackupSettingsContent()
+                    3 -> AboutContent()
                 }
             }
 
@@ -1515,6 +1542,126 @@ fun UISettingsContent() {
         ExpandableSection("Static Symbol Row") { StaticSymbolRowSettings() }
         ExpandableSection("Menu Row") { MenuRowSettings() }
         ExpandableSection("Symbol Sizing") { SymbolSizingSettings() }
+        ExpandableSection("Edit Mode") { EditMode() }
+    }
+}
+
+@Composable
+fun EditMode()
+{
+    Column {
+        Text("Edit symbols, folders, and menus by tapping them.",
+            fontSize = 14.sp, color = Color.DarkGray)
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = {
+            editor_mode.value = true
+            show_settings.value = false
+        }) { Text("Enable editor mode") }
+    }
+}
+
+@Composable
+fun BackupSettingsContent() {
+    val context = LocalContext.current
+    var statusMessage by remember { mutableStateOf("") }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri == null) {
+            statusMessage = "Export cancelled."
+            return@rememberLauncherForActivityResult
+        }
+        try {
+            val state = PersistedState(
+                box_size_dp = box_size.value,
+                box_padding_dp = box_padding.value,
+                input_box_height_dp = input_box_height.value,
+                item_text_padding_dp = item_text_padding.value,
+                has_seen_tutorial = true,
+                tts_data_found = tts_data_found.value,
+                menu_list = MenuList.toList(),
+                static_terms = static_terms.toList(),
+                static_row_height = static_row_height.value,
+                menu_static_row_height = menu_static_row_height.value,
+                button_boxes_width = button_boxes_width.value
+            )
+            val json = Json.encodeToString(state)
+            context.contentResolver.openOutputStream(uri)?.use { output ->
+                output.write(json.toByteArray())
+            }
+            statusMessage = "Exported successfully."
+        } catch (e: Exception) {
+            statusMessage = "Export failed: ${e.message}"
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) {
+            statusMessage = "Import cancelled."
+            return@rememberLauncherForActivityResult
+        }
+        try {
+            val json = context.contentResolver.openInputStream(uri)?.use { input ->
+                input.bufferedReader().readText()
+            } ?: throw Exception("Could not read file.")
+            val state = Json.decodeFromString<PersistedState>(json)
+
+            box_size = state.box_size_dp.dp
+            box_padding = state.box_padding_dp.dp
+            input_box_height = state.input_box_height_dp.dp
+            item_text_padding = state.item_text_padding_dp.dp
+            tts_data_found.value = state.tts_data_found
+            static_terms.clear()
+            static_terms.addAll(state.static_terms)
+            MenuList.clear()
+            MenuList.addAll(state.menu_list)
+            static_row_height = state.static_row_height.dp
+            menu_static_row_height = state.menu_static_row_height.dp
+            button_boxes_width = state.button_boxes_width.dp
+
+            statusMessage = "Imported successfully."
+        } catch (e: Exception) {
+            statusMessage = "Import failed: ${e.message}"
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text("Save your SpeGen data to a file, or restore from a previous backup.",
+            fontSize = 14.sp, color = Color.DarkGray)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = {
+                val timestamp = java.text.SimpleDateFormat("yyyyMMdd_HHmmss",
+                    java.util.Locale.getDefault()).format(java.util.Date())
+                exportLauncher.launch("spegen_backup_$timestamp.json")
+            },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        ) { Text("Export to .json file") }
+        Text("Backup/Restore for this option works with the following applications: ",
+            fontSize = 14.sp, color = Color.DarkGray)
+        Text("SpeGen")
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        ) { Text("Import from file") }
+
+        if (statusMessage.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(text = statusMessage, fontSize = 14.sp,
+                color = if (statusMessage.contains("fail", ignoreCase = true)
+                    || statusMessage.contains("cancel", ignoreCase = true))
+                    Color.Red else Color(0xFF2E7D32))
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Text("Note: Importing replaces all current data. Export first if you want to keep a copy.",
+            fontSize = 12.sp, color = Color.Gray)
     }
 }
 
@@ -1773,7 +1920,206 @@ fun Buttonboxes() {
     }
 }
 
+@Composable
+fun EditorToolbar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .background(Color(0xFFFFE082))
+            .border(2.dp, Color(0xFFFF8F00))
+            .zIndex(800f)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text("EDITOR MODE", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+        Spacer(modifier = Modifier.weight(1f))
+        Button(onClick = { show_add_item_dialog.value = true }) { Text("+ Item") }
+        Button(onClick = { show_new_menu_dialog.value = true }) { Text("+ Menu") }
+        Button(
+            onClick = { editor_mode.value = false },
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF424242))
+        ) { Text("Exit") }
+    }
+}
 
+@Composable
+fun EditItemDialog() {
+    val menu = MenuFinder(edit_target_menu_id.intValue)
+    val idx = edit_target_index.intValue
+    if (idx < 0 || idx >= menu.item_list.size) {
+        show_edit_item_dialog.value = false
+        return
+    }
+
+    var name by remember { mutableStateOf(menu.item_list[idx]) }
+    val originalIsSymbol = menu.item_type[idx]
+    var ttsType by remember { mutableIntStateOf(menu.tts[idx] ?: 2) }
+
+    AlertDialog(
+        onDismissRequest = { show_edit_item_dialog.value = false },
+        title = { Text("Edit ${if (originalIsSymbol) "symbol" else "folder"}") },
+        text = {
+            Column {
+                Text("Name", fontSize = 14.sp)
+                TextField(value = name, onValueChange = { name = it }, singleLine = true)
+                if (originalIsSymbol) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("TTS behavior", fontSize = 14.sp)
+                    Row {
+                        listOf("Type only" to 0, "Speak only" to 1, "Both" to 2).forEach { (label, value) ->
+                            Row(
+                                modifier = Modifier.clickable { ttsType = value }.padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(if (ttsType == value) "● $label" else "○ $label", fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val menuIndex = MenuList.indexOfFirst { it.id == menu.id }
+                if (menuIndex >= 0) {
+                    val updated = menu.copy(
+                        item_list = menu.item_list.toMutableList().also { it[idx] = name.trim() },
+                        tts = if (originalIsSymbol)
+                            menu.tts.toMutableList().also { it[idx] = ttsType }
+                        else menu.tts
+                    )
+                    MenuList[menuIndex] = updated
+                }
+                show_edit_item_dialog.value = false
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        val menuIndex = MenuList.indexOfFirst { it.id == menu.id }
+                        if (menuIndex >= 0) {
+                            val updated = menu.copy(
+                                item_list = menu.item_list.toMutableList().also { it.removeAt(idx) },
+                                pointers = menu.pointers.toMutableList().also { it.removeAt(idx) },
+                                tts = menu.tts.toMutableList().also { it.removeAt(idx) },
+                                item_type = menu.item_type.toMutableList().also { it.removeAt(idx) }
+                            )
+                            MenuList[menuIndex] = updated
+                            switchmenuparser.value++
+                        }
+                        show_edit_item_dialog.value = false
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F))
+                ) { Text("Delete") }
+                Button(onClick = { show_edit_item_dialog.value = false }) { Text("Cancel") }
+            }
+        }
+    )
+}
+
+@Composable
+fun AddItemDialog() {
+    var name by remember { mutableStateOf("") }
+    var isSymbol by remember { mutableStateOf(true) }
+    var ttsType by remember { mutableIntStateOf(2) }
+    var folderTarget by remember { mutableIntStateOf(2) }
+
+    AlertDialog(
+        onDismissRequest = { show_add_item_dialog.value = false },
+        title = { Text("Add item to ${MenuFinder(current_menu_id).title}") },
+        text = {
+            Column {
+                Text("Name", fontSize = 14.sp)
+                TextField(value = name, onValueChange = { name = it }, singleLine = true)
+                Spacer(modifier = Modifier.height(12.dp))
+                Row {
+                    Row(modifier = Modifier.clickable { isSymbol = true }.padding(8.dp)) {
+                        Text(if (isSymbol) "● Symbol" else "○ Symbol")
+                    }
+                    Row(modifier = Modifier.clickable { isSymbol = false }.padding(8.dp)) {
+                        Text(if (!isSymbol) "● Folder" else "○ Folder")
+                    }
+                }
+                if (!isSymbol) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Folder target menu", fontSize = 14.sp)
+                    Column(modifier = Modifier.heightIn(max = 150.dp).verticalScroll(rememberScrollState())) {
+                        MenuList.forEach { m ->
+                            Row(modifier = Modifier.clickable { folderTarget = m.id }.padding(4.dp)) {
+                                Text(if (folderTarget == m.id) "● ${m.title}" else "○ ${m.title}",
+                                    fontSize = 13.sp)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (name.isNotBlank()) {
+                    val menuIndex = MenuList.indexOfFirst { it.id == current_menu_id }
+                    if (menuIndex >= 0) {
+                        val m = MenuList[menuIndex]
+                        val updated = m.copy(
+                            item_list = m.item_list + name.trim(),
+                            pointers = m.pointers + (if (isSymbol) null else folderTarget),
+                            tts = m.tts + (if (isSymbol) ttsType else null),
+                            item_type = m.item_type + isSymbol
+                        )
+                        MenuList[menuIndex] = updated
+                        switchmenuparser.value++
+                    }
+                }
+                show_add_item_dialog.value = false
+            }) { Text("Add") }
+        },
+        dismissButton = {
+            Button(onClick = { show_add_item_dialog.value = false }) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun NewMenuDialog() {
+    var title by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = { show_new_menu_dialog.value = false },
+        title = { Text("Create new menu") },
+        text = {
+            Column {
+                Text("Menu title", fontSize = 14.sp)
+                TextField(value = title, onValueChange = { title = it }, singleLine = true)
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("The menu will be created with no items. You can add items by entering it and using '+ Item'.",
+                    fontSize = 12.sp, color = Color.Gray)
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                if (title.isNotBlank()) {
+                    val newId = (MenuList.maxOfOrNull { it.id } ?: 0) + 1
+                    MenuList.add(menutemplate(
+                        id = newId,
+                        title = title.trim(),
+                        parentId = 1,
+                        item_list = emptyList(),
+                        pointers = emptyList(),
+                        tts = emptyList(),
+                        item_type = emptyList()
+                    ))
+                    switchmenuparser.value++
+                }
+                show_new_menu_dialog.value = false
+            }) { Text("Create") }
+        },
+        dismissButton = {
+            Button(onClick = { show_new_menu_dialog.value = false }) { Text("Cancel") }
+        }
+    )
+}
 
 @Composable
 fun Screen() {
@@ -1785,6 +2131,9 @@ fun Screen() {
         if (wordfinder_display.intValue != a.intValue) {
             WordFinder()
         } else {
+            if (editor_mode.value) {
+                EditorToolbar()
+            }
             Buttonboxes()
             MenuRow(Modifier)
             InputBox(Modifier)
