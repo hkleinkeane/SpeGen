@@ -78,10 +78,21 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.core.content.edit
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.lifecycleScope
+import com.hkleinkeane.spegen.menutemplate
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
+import kotlin.collections.List
 
-
-// Text box text variable
-var text: String = ""
+val Context.spegen_datastore by preferencesDataStore(name = "spegen_settings")
+private val APP_STATE_KEY = stringPreferencesKey("app_state")
 
 // Shared secret which is used for calling for an access token
 const val CLIENT_SECRET = "d65234627cc790cba662f6b3"
@@ -89,54 +100,14 @@ const val CLIENT_SECRET = "d65234627cc790cba662f6b3"
 // Access token that is used for calling to the API
 var accesstoken = ""
 
-// These are all the variables that update whenever an image is called based off of its properties to allow for global use.
-var id = 0
-var symbol_key = ""
 var name = ""
-var locale = ""
-var license = ""
-var license_url = ""
-var author = ""
-var author_url = ""
-var source_url: String? = ""
-var skins = false
-var repo_key = ""
-var hc = false
-var extension = ""
-var image_url = ""
-var search_string: String? = ""
-var unsafe_result = false
-var _href = ""
-var details_url = ""
-
-// Variable that will update if the image is not found or is empty. Used in the LoadImages function.
-var empty = false
 
 // Screen height and width variables as determined by GetScreenDimensions()
 var screenHeight = 0.dp
 var screenWidth = 0.dp
 
-// Ensures that the function that manages image display is always ran through changing this value when OpenSymbolsButton is clicked
-var alternate = false
-
-// See above, only this one is for SymbolsButtonExec
-var alternate_button = false
-
-// Amount of images that should be displayed on screen when calling for images
-var display_images = 8
-
 // Is the device in landscape?
 var isLandscape = false
-
-var image_names = mutableListOf("")
-
-var image_urls = mutableListOf("")
-
-var image_number = 0
-
-var maxItems = display_images
-
-val paddingDividend = 50
 
 var static_row_height = 0.dp
 
@@ -147,15 +118,15 @@ var button_boxes_width = 0.dp
 val home = menutemplate(
     1, "Home", 1,
     listOf("I", "want", "more", "help", "yes", "no", "stop", "please", "People", "Actions", "Food", "Feelings"),
-    listOf(false, false, false, false, false, false, false, false, 2, 3, 4, 5),
-    listOf(2, 2, 2, 2, 2, 2, 2, 2, false, false, false, false),
+    listOf(null, null, null, null, null, null, null, null, 2, 3, 4, 5),
+    listOf(2, 2, 2, 2, 2, 2, 2, 2, null, null, null, null),
     listOf(true, true, true, true, true, true, true, true, false, false, false, false)
 )
 
 val people = menutemplate(
     2, "People", 1,
     listOf("you", "me", "mom", "dad", "sister", "brother", "friend", "teacher"),
-    listOf(false, false, false, false, false, false, false, false),
+    listOf(null, null, null, null, null, null, null, null),
     listOf(2, 2, 2, 2, 2, 2, 2, 2),
     listOf(true, true, true, true, true, true, true, true)
 )
@@ -163,7 +134,7 @@ val people = menutemplate(
 val actions = menutemplate(
     3, "Actions", 1,
     listOf("eat", "drink", "play", "go", "sleep", "read", "watch", "listen"),
-    listOf(false, false, false, false, false, false, false, false),
+    listOf(null, null, null, null, null, null, null, null),
     listOf(2, 2, 2, 2, 2, 2, 2, 2),
     listOf(true, true, true, true, true, true, true, true)
 )
@@ -171,7 +142,7 @@ val actions = menutemplate(
 val food = menutemplate(
     4, "Food", 1,
     listOf("water", "milk", "apple", "banana", "sandwich", "pizza", "cookie", "snack"),
-    listOf(false, false, false, false, false, false, false, false),
+    listOf(null, null, null, null, null, null, null, null),
     listOf(2, 2, 2, 2, 2, 2, 2, 2),
     listOf(true, true, true, true, true, true, true, true)
 )
@@ -179,12 +150,12 @@ val food = menutemplate(
 val feelings = menutemplate(
     5, "Feelings", 1,
     listOf("happy", "sad", "tired", "sick", "hungry", "thirsty", "scared", "excited"),
-    listOf(false, false, false, false, false, false, false, false),
+    listOf(null, null, null, null, null, null, null, null),
     listOf(2, 2, 2, 2, 2, 2, 2, 2),
     listOf(true, true, true, true, true, true, true, true)
 )
 
-var MenuList = listOf<menutemplate>(home, people, actions, food, feelings)
+var MenuList = mutableStateListOf<menutemplate>(home, people, actions, food, feelings)
 
 var box_size = 100.dp
 
@@ -207,8 +178,6 @@ var wordfinder_display_buttonguide = mutableIntStateOf(0)
 var switchmenuparser = mutableStateOf(0)
 
 var linked_menu = mutableStateOf(1)
-
-var modifier_picker: Modifier = Modifier
 
 var menukeylist = mutableListOf<Int>()
 
@@ -235,12 +204,17 @@ val wordfinder_highlight_index = mutableIntStateOf(-1)
 
 var input_box_height = 0.dp
 
+var static_terms = mutableStateListOf<String>("Yes", "No", "Thank you", "I need help", "Excuse me", "I use a talker to communicate")
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val prefs = getSharedPreferences("spegen_prefs", MODE_PRIVATE)
         val hasSeenTutorial = prefs.getBoolean("has_seen_tutorial", false)
         val show_tutorial = mutableStateOf(false)
         super.onCreate(savedInstanceState)
+        runBlocking {
+            loadAllPreferences(this@MainActivity)
+        }
         setContent {
             LaunchedEffect(Unit)
             {
@@ -295,7 +269,7 @@ class MainActivity : ComponentActivity() {
                                 Folder(
                                     folder_name,
                                     folder_image_url,
-                                    folder_menu as Int,
+                                    folder_menu!!,
                                     vertical_stretch,
                                     x_offset,
                                     y_offset,
@@ -333,7 +307,7 @@ class MainActivity : ComponentActivity() {
                         var symbol_image_url by remember { mutableStateOf("") }
                         val vertical_stretch =
                             ((menu_height) - ((((menu_height) / (total_box_size)).toInt()) * total_box_size))
-                        val tts_type = menu.tts[index] as Int
+                        val tts_type = menu.tts[index]!!
                         LaunchedEffect(symbol_name) {
                             val res = useApiWithToken(accesstoken, symbol_name)
                             symbol_image_url = res?.image_url ?: ""
@@ -361,9 +335,76 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    override fun onPause() {
+        super.onPause()
+        // launch a fire-and-forget coroutine; DataStore handles transactional writes
+        lifecycleScope.launch {
+            saveAllPreferences(this@MainActivity)
+        }
+    }
 }
 
+@Serializable
+data class PersistedState(
+    val box_size_dp: Float = 100f,
+    val box_padding_dp: Float = 20f,
+    val input_box_height_dp: Float = 0f,
+    val item_text_padding_dp: Float = 20f,
+    val has_seen_tutorial: Boolean = false,
+    val tts_data_found: Boolean = false,
+    val menu_list: List<menutemplate> = emptyList(),
+    val static_terms: List<String> = emptyList(),
+    val static_row_height: Float = 50f,
+    val menu_static_row_height: Float = 50f,
+    val button_boxes_width: Float = 50f,
+    val should_scale_box_size: Boolean = true
+)
 
+suspend fun saveAllPreferences(context: Context) {
+    val state = PersistedState(
+        box_size_dp = box_size.value,
+        box_padding_dp = box_padding.value,
+        input_box_height_dp = input_box_height.value,
+        item_text_padding_dp = item_text_padding.value,
+        has_seen_tutorial = true,
+        tts_data_found = tts_data_found.value,
+        menu_list = MenuList,
+        static_terms = static_terms,
+        static_row_height = static_row_height.value,
+        menu_static_row_height = menu_static_row_height.value,
+        button_boxes_width = button_boxes_width.value,
+    )
+    context.spegen_datastore.edit { prefs ->
+        prefs[APP_STATE_KEY] = Json.encodeToString(state)
+    }
+}
+
+suspend fun loadAllPreferences(context: Context) {
+    // static_row_height, menu_static_row_height, button_boxes_width
+    val prefs = context.spegen_datastore.data.first()
+    val json = prefs[APP_STATE_KEY] ?: return
+    val state = try {
+        Json.decodeFromString<PersistedState>(json)
+    } catch (e: Exception) {
+        println("Failed to load preferences: ${e.message}")
+        return
+    }
+
+    box_size = state.box_size_dp.dp
+    box_padding = state.box_padding_dp.dp
+    input_box_height = state.input_box_height_dp.dp
+    item_text_padding = state.item_text_padding_dp.dp
+    tts_data_found.value = state.tts_data_found
+
+    static_terms.clear()
+    static_terms.addAll(state.static_terms)
+    MenuList.clear()
+    MenuList.addAll(state.menu_list)
+
+    static_row_height = state.static_row_height.dp
+    menu_static_row_height = state.menu_static_row_height.dp
+    button_boxes_width = state.button_boxes_width.dp
+}
 
 @Composable
 fun GetScreenDimensions() {
@@ -560,14 +601,13 @@ fun TutorialOverlay(onFinish: () -> Unit) {
 @Composable
 fun Static_Row_Needs() {
     tts = rememberTextToSpeech()
-    val static_terms: MutableList<String> = mutableListOf("Yes", "No", "Thank you", "I need help", "Excuse me", "I use a talker to communicate")
     var text_color = Color.Black // Set as var to be able to be customized by user later
     var text_alignment = Alignment.Center // Set as var to be able to be customized by user later
     var box_color = Color.White // Set as var to be able to be customized by user later
     var border_size = 2.dp // Set as var to be able to be customized by user later
     var border_color = Color.Black // Set as var to be able to be customized by user later
     var width = (screenWidth/static_terms.size.dp).dp // Determine width of boxes by dividing screen width by total number of boxes which is equal to number of needed terms
-    static_row_height = screenHeight * (1f / 8f) // Fraction determined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
+    static_row_height = screenHeight * (1f / 8f) // Fraction deterxmined by base value of 70.dp then converted to fraction and applied to screen height to (hopefully) make box height scale with screen height
     var y_offset = (screenHeight-static_row_height) // Determines Y offset by subtracting height from the total screen width
     var x_offset = (0).dp // Determines X offset. Not needed since the first box starts at the left edge of the screen.
     for (i in 0 until static_terms.size) // For loop to create modular number of boxes. Starts at zero due to X offset calculations and ends at the number of terms minus 1 since it starts at zero
@@ -592,37 +632,6 @@ fun Static_Row_Needs() {
                 Text(text = static_terms[i], color = text_color, modifier = Modifier.align(text_alignment))
             }
         }
-}
-
-fun scale_box_size(
-    available_width: Dp,
-    original_box_size: Dp,
-    box_padding: Dp,
-    margin: Dp = 30.dp // how much shrinkage is allowed
-    ): Pair<Dp, Int>
-    {
-    val item_padding = box_padding * 2
-    val min_size = (original_box_size - margin).coerceAtLeast(20.dp)
-    val max_size = original_box_size
-
-    // smallest item size = most items per row
-    val max_items_per_row = (available_width.value / (min_size.value + item_padding.value))
-    .toInt().coerceAtLeast(1)
-
-    // largest count of items that still fits if original_box_size is used
-    val items_at_original = (available_width.value / (max_size.value + item_padding.value))
-    .toInt().coerceAtLeast(1)
-
-    // pick the bigger of the two (most items in a row)
-    val target_items = max_items_per_row
-
-    // exact size to make a perfect fit
-    val total_padding = target_items * item_padding.value
-    val exact_size = ((available_width.value - total_padding) / target_items).coerceIn(
-    min_size.value, max_size.value
-    )
-
-    return Pair(exact_size.dp, target_items)
 }
 
 @Composable
@@ -886,14 +895,14 @@ fun Folder(Name: String, image_url: String, LinkedMenu: Int, Vertical_Stretch: D
     }
 }
 
-
+@Serializable
 data class menutemplate(
     val id: Int, // ID of the current menu
     val title: String, // Title of the current menu
     val parentId: Int?, // ID of the parent menu
     val item_list: List<String>, // List of the names of all items, both folders and symbols
-    val pointers: List<Any>, // Pointers to be used in MenuFinder to find the corresponding menu for a folder to link to. False if item is a symbol since it has no pointer.
-    val tts: List<Any>, // 0 is for appending to the input box without instantly playing, 1 is for instantly playing in tts engine without appending to input box, 2 is for both appending to text box and playing in tts engine instantly. If a value is false item is a folder that doesn't have tts.
+    val pointers: List<Int?>, // Pointers to be used in MenuFinder to find the corresponding menu for a folder to link to. Null if item is a symbol since it has no pointer.
+    val tts: List<Int?>, // 0 is for appending to the input box without instantly playing, 1 is for instantly playing in tts engine without appending to input box, 2 is for both appending to text box and playing in tts engine instantly. If a value is null item is a folder that doesn't have tts.
     val item_type: List<Boolean>, // False is for folder, true is for symbol
 )
 
@@ -996,9 +1005,9 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                             item_positions[itemKey] = coords.positionInRoot()
                         }) {
                             if (menutemplate.item_type[i]) {
-                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
+                                Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i]!!)
                             } else {
-                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
+                                Folder(item_names[i], item_urls[i], menutemplate.pointers[i]!!, vertical_stretch)
                             }
                         }
                     }
@@ -1055,9 +1064,9 @@ fun MenuParser(menutemplate: menutemplate, modifier: Modifier = Modifier) {
                         item_positions[itemKey] = coords.positionInRoot()
                     }) {
                         if (menutemplate.item_type[i]) {
-                            Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i] as Int)
+                            Symbol(item_names[i], item_urls[i], vertical_stretch, menutemplate.tts[i]!!)
                         } else {
-                            Folder(item_names[i], item_urls[i], menutemplate.pointers[i] as Int, vertical_stretch)
+                            Folder(item_names[i], item_urls[i], menutemplate.pointers[i]!!, vertical_stretch)
                         }
                     }
                 }
@@ -1288,7 +1297,7 @@ fun WordFinder_Card(Name: String, MenuList_element: Int, is_symbol: Boolean, ite
     }
     LaunchedEffect(Unit) {
         val res = useApiWithToken(accesstoken, MenuList[MenuList_element].item_list[item_position])
-        card_name = res?.name.toString()
+        card_name = res?.name ?: MenuList[MenuList_element].item_list[item_position]
         card_url = res?.image_url.toString()
     }
     Card(
@@ -1543,9 +1552,7 @@ fun Buttonboxes() {
 
 @Composable
 fun Screen() {
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.White)) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
         tts = rememberTextToSpeech()
         val a = remember { mutableIntStateOf(0) }
         GetScreenDimensions()
@@ -1556,7 +1563,6 @@ fun Screen() {
             Buttonboxes()
             MenuRow(Modifier)
             InputBox(Modifier)
-            box_size = scale_box_size(menu_width-(button_boxes_width*2), box_size, box_padding, 30.dp).first
             Menu(Modifier)
         }
     }
